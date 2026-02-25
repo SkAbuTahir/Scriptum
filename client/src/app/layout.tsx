@@ -3,6 +3,8 @@ import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { ToasterProvider } from '@/components/providers/ToasterProvider';
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
+import FloatingDockNav from '@/components/FloatingDockNav';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -41,11 +43,22 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Prevent flash of wrong theme — runs synchronously before paint */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark');}else{document.documentElement.classList.remove('dark');}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body>
-        <AuthProvider>
-          <ToasterProvider />
-          {children}
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ToasterProvider />
+            <FloatingDockNav />
+            {children}
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

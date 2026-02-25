@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AISuggestion, AnalysisResult, GrammarIssue } from '../types';
-import { checkGrammar } from './grammarCheck';
+import { checkGrammar, computeGrammarScore } from './grammarCheck';
 
 // ─── Gemini client (lazy init) ────────────────────────────────────────────────
 
@@ -73,18 +73,28 @@ async function generateSuggestions(text: string): Promise<AISuggestion[]> {
     },
   });
 
-  const prompt = `You are a professional editor and writing coach.
+  const prompt = `You are a professional editor, writing coach, and communication expert.
 
-Review the following text and provide up to 5 improvement suggestions.
-For each suggestion identify a specific passage and suggest how to improve it.
+Review the following text thoroughly and provide up to 8 actionable improvement tips.
+For each tip, identify a SPECIFIC passage from the text and explain exactly how to improve it.
+
+Tip types to consider:
+- "rewrite": Restructure a sentence or paragraph for better flow
+- "simplify": Replace complex or jargon-heavy phrases with clearer language
+- "expand": Add missing detail, evidence, or explanation
+- "tone": Adjust formality, voice, or emotional register
+- "clarity": Fix ambiguous pronouns, unclear antecedents, confusing structure
+- "vocabulary": Replace weak, vague, or repetitive word choices
+- "structure": Improve paragraph organisation, transitions, or logical flow
+- "concise": Remove filler words, redundancy, or unnecessary repetition
 
 Return ONLY a valid JSON array (no markdown, no extra text):
 [
   {
-    "type": "rewrite|simplify|expand|tone",
+    "type": "rewrite|simplify|expand|tone|clarity|vocabulary|structure|concise",
     "original": "<exact excerpt from text, max 150 chars>",
-    "suggested": "<improved version>",
-    "reason": "<why this improvement helps>"
+    "suggested": "<improved version with specific change>",
+    "reason": "<concise explanation of why this improves the writing>"
   }
 ]
 
@@ -100,7 +110,7 @@ ${sample}
 
     const parsed = JSON.parse(raw) as AISuggestion[] | { suggestions?: AISuggestion[] };
     const suggestions = Array.isArray(parsed) ? parsed : (parsed.suggestions ?? []);
-    return suggestions.slice(0, 5);
+    return suggestions.slice(0, 8);
   } catch (err) {
     console.error('Suggestion generation failed:', err);
     return [];
@@ -172,10 +182,12 @@ export async function analyseDocument(text: string): Promise<AnalysisResult> {
     computeReadabilityScore(text);
 
   const plagiarismScore = computePlagiarismScore();
+  const grammarScore = computeGrammarScore(wordCount, grammarIssues);
 
   return {
     aiLikelihoodScore,
     grammarIssues,
+    grammarScore,
     plagiarismScore,
     suggestions,
     readabilityScore,

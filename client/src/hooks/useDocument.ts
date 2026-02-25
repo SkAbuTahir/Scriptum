@@ -36,13 +36,14 @@ export function useDocument(documentId: string): UseDocumentReturn {
         setAnalysis({
           documentId: doc._id,
           aiLikelihoodScore: doc.aiScore ?? 0,
-          plagiarismScore: doc.plagiarismScore ?? 0,
-          readabilityScore: doc.readabilityScore ?? 0,
-          grammarIssues: doc.grammarIssues,
-          suggestions: doc.suggestions,
-          wordCount: doc.wordCount,
-          sentenceCount: 0,
-          analyzedAt: doc.analysisRunAt,
+          grammarScore:      doc.grammarScore ?? 0,
+          plagiarismScore:   doc.plagiarismScore ?? 0,
+          readabilityScore:  doc.readabilityScore ?? 0,
+          grammarIssues:     doc.grammarIssues,
+          suggestions:       doc.suggestions,
+          wordCount:         doc.wordCount,
+          sentenceCount:     0,
+          analyzedAt:        doc.analysisRunAt,
         });
       }
     } catch (err) {

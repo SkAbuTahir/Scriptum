@@ -38,6 +38,7 @@ export interface GrammarIssue {
   length: number;
   replacements: string[];
   context: string;
+  severity?: 'error' | 'warning' | 'suggestion';
   rule: {
     id: string;
     description: string;
@@ -46,7 +47,7 @@ export interface GrammarIssue {
 }
 
 export interface AISuggestion {
-  type: 'rewrite' | 'simplify' | 'expand' | 'tone';
+  type: 'rewrite' | 'simplify' | 'expand' | 'tone' | 'clarity' | 'vocabulary' | 'structure' | 'concise';
   original: string;
   suggested: string;
   reason: string;
@@ -55,6 +56,7 @@ export interface AISuggestion {
 export interface AnalysisResult {
   aiLikelihoodScore: number | null;  // 0–100 probability, null if unavailable
   grammarIssues: GrammarIssue[];
+  grammarScore: number;            // 0–100 where 100 = perfect grammar
   plagiarismScore: number;         // 0–100
   suggestions: AISuggestion[];
   readabilityScore?: number;

@@ -35,6 +35,21 @@ export function scoreColor(score: number): string {
   return 'stroke-emerald-500 text-emerald-600';
 }
 
+/** Grammar/readability score: higher is better */
+export function positiveScoreColor(score: number): string {
+  if (score >= 80) return 'stroke-emerald-500 text-emerald-600';
+  if (score >= 55) return 'stroke-amber-400 text-amber-500';
+  return 'stroke-red-500 text-red-600';
+}
+
+export function grammarScoreLabel(score: number): string {
+  if (score >= 90) return 'Excellent';
+  if (score >= 75) return 'Good';
+  if (score >= 55) return 'Fair';
+  if (score >= 35) return 'Poor';
+  return 'Needs Work';
+}
+
 export function scoreLabel(score: number, type: 'ai' | 'plagiarism' | 'readability'): string {
   if (type === 'readability') {
     if (score >= 70) return 'Easy';

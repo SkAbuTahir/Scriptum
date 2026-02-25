@@ -44,13 +44,14 @@ export const analyzeDocument = async (
       id,
       {
         $set: {
-          aiScore:         analysis.aiLikelihoodScore ?? null,
-          plagiarismScore: analysis.plagiarismScore   ?? 0,
-          grammarIssues:   analysis.grammarIssues     ?? [],
-          suggestions:     analysis.suggestions       ?? [],
-          readabilityScore: analysis.readabilityScore ?? null,
-          analysisRunAt:   analyzedAt,
-          status:          'analyzed',
+          aiScore:          analysis.aiLikelihoodScore ?? null,
+          grammarScore:     analysis.grammarScore      ?? null,
+          plagiarismScore:  analysis.plagiarismScore   ?? 0,
+          grammarIssues:    analysis.grammarIssues     ?? [],
+          suggestions:      analysis.suggestions       ?? [],
+          readabilityScore: analysis.readabilityScore  ?? null,
+          analysisRunAt:    analyzedAt,
+          status:           'analyzed',
         },
       },
       { new: true }
@@ -61,6 +62,7 @@ export const analyzeDocument = async (
       data: {
         documentId:        id,
         aiLikelihoodScore: updated?.aiScore,
+        grammarScore:      updated?.grammarScore,
         plagiarismScore:   updated?.plagiarismScore,
         readabilityScore:  updated?.readabilityScore,
         grammarIssues:     updated?.grammarIssues,

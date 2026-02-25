@@ -24,6 +24,11 @@ const grammarIssueSchema = new Schema(
   {
     message: String,
     shortMessage: String,
+    severity: {
+      type: String,
+      enum: ['error', 'warning', 'suggestion'],
+      default: 'warning',
+    },
     offset: Number,
     length: Number,
     replacements: [String],
@@ -41,7 +46,7 @@ const suggestionSchema = new Schema(
   {
     type: {
       type: String,
-      enum: ['rewrite', 'simplify', 'expand', 'tone'],
+      enum: ['rewrite', 'simplify', 'expand', 'tone', 'clarity', 'vocabulary', 'structure', 'concise'],
     },
     original: String,
     suggested: String,
@@ -74,11 +79,13 @@ export interface IDocument extends Document {
   };
   wordCount: number;
   aiScore: number | null;
+  grammarScore: number | null;
   plagiarismScore: number | null;
   readabilityScore: number | null;
   grammarIssues: Array<{
     message: string;
     shortMessage?: string;
+    severity?: 'error' | 'warning' | 'suggestion';
     offset: number;
     length: number;
     replacements: string[];
@@ -137,6 +144,10 @@ const documentSchema = new Schema<IDocument>(
       default: 0,
     },
     aiScore: {
+      type: Number,
+      default: null,
+    },
+    grammarScore: {
       type: Number,
       default: null,
     },

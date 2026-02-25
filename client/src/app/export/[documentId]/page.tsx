@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
 import { useDocument } from '@/hooks/useDocument';
 import { exportApi } from '@/lib/api';
 import { downloadBlob } from '@/lib/utils';
@@ -73,8 +72,7 @@ export default function ExportPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <Navbar />
-      <main className="animate-page-in mx-auto max-w-3xl px-4 py-8 sm:px-6">
+      <main className="animate-page-in mx-auto max-w-3xl px-4 py-8 pb-28 sm:px-6">
         <div className="mb-6 flex items-center gap-2 text-sm text-slate-500">
           <Link href="/dashboard" className="hover:text-brand-600">Dashboard</Link>
           <span>/</span>

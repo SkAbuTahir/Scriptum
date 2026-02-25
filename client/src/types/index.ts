@@ -38,6 +38,7 @@ export interface GrammarIssue {
   length: number;
   replacements: string[];
   context: string;
+  severity?: 'error' | 'warning' | 'suggestion';
   rule: {
     id: string;
     description: string;
@@ -46,7 +47,7 @@ export interface GrammarIssue {
 }
 
 export interface AISuggestion {
-  type: 'rewrite' | 'simplify' | 'expand' | 'tone';
+  type: 'rewrite' | 'simplify' | 'expand' | 'tone' | 'clarity' | 'vocabulary' | 'structure' | 'concise';
   original: string;
   suggested: string;
   reason: string;
@@ -63,6 +64,7 @@ export interface Document {
   structuredContent: StructuredContent;
   wordCount: number;
   aiScore: number | null;
+  grammarScore: number | null;
   plagiarismScore: number | null;
   readabilityScore: number | null;
   grammarIssues: GrammarIssue[];
@@ -80,6 +82,7 @@ export type DocumentSummary = Omit<Document, 'rawText' | 'cleanedText' | 'struct
 export interface AnalysisResult {
   documentId: string;
   aiLikelihoodScore: number;
+  grammarScore: number;
   plagiarismScore: number;
   readabilityScore: number;
   grammarIssues: GrammarIssue[];

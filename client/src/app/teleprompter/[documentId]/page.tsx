@@ -2,7 +2,6 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
 import TeleprompterView from '@/components/Teleprompter';
 import { useDocument } from '@/hooks/useDocument';
 import { Loader2, AlertCircle, ChevronLeft } from 'lucide-react';

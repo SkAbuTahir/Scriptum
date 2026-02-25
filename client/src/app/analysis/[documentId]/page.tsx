@@ -2,7 +2,6 @@
 
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
 import AnalysisPanel from '@/components/AnalysisPanel';
 import { useDocument } from '@/hooks/useDocument';
 import { ChevronLeft, Loader2, AlertCircle, Edit3 } from 'lucide-react';
@@ -31,8 +30,7 @@ export default function AnalysisPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      <Navbar />
-      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
+      <main className="mx-auto max-w-4xl px-4 py-8 pb-28 sm:px-6">
         {/* Breadcrumb */}
         <div className="mb-6 flex items-center gap-2 text-sm text-slate-500">
           <Link href="/dashboard" className="hover:text-brand-600">Dashboard</Link>

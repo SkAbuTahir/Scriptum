@@ -38,6 +38,8 @@ const config: Config = {
         'fade-in': 'fadeIn 0.3s ease-in-out',
         'slide-in': 'slideIn 0.3s ease-out',
         'pulse-slow': 'pulse 3s ease-in-out infinite',
+        shimmer: 'shimmer 2.5s ease-in-out infinite',
+        'meteor-effect': 'meteor 6s linear infinite',
       },
       keyframes: {
         scrollUp: {
@@ -51,6 +53,15 @@ const config: Config = {
         slideIn: {
           '0%': { transform: 'translateY(8px)', opacity: '0' },
           '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(200%)' },
+        },
+        meteor: {
+          '0%': { transform: 'rotate(215deg) translateX(0)', opacity: '1' },
+          '70%': { opacity: '1' },
+          '100%': { transform: 'rotate(215deg) translateX(-600px)', opacity: '0' },
         },
       },
       backgroundImage: {

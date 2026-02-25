@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Navbar from '@/components/Navbar';
 import AnalysisPanel from '@/components/AnalysisPanel';
 import { useDocument } from '@/hooks/useDocument';
 import {
@@ -52,7 +51,7 @@ export default function EditorPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
+      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-zinc-950">
         <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
       </div>
     );
@@ -60,7 +59,7 @@ export default function EditorPage() {
 
   if (error || !document) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-900">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-zinc-950">
         <AlertCircle className="h-12 w-12 text-red-400" />
         <p className="text-lg font-medium">{error || 'Document not found'}</p>
         <Link href="/dashboard" className="btn-secondary">
@@ -71,11 +70,9 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-900">
-      <Navbar />
-
+    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-zinc-950">
       {/* Editor toolbar */}
-      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-slate-700 dark:bg-slate-900/80">
+      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-6">
           <Link href="/dashboard" className="btn-ghost p-2">
             <ChevronLeft className="h-4 w-4" />
@@ -89,7 +86,7 @@ export default function EditorPage() {
           </div>
 
           {/* Tabs (mobile) */}
-          <div className="flex rounded-lg border border-slate-200 p-0.5 dark:border-slate-700 md:hidden">
+          <div className="flex rounded-lg border border-slate-200 p-0.5 dark:border-zinc-800 md:hidden">
             <button
               onClick={() => setActiveTab('edit')}
               className={cn('rounded px-3 py-1 text-xs font-medium transition-all',
@@ -146,7 +143,7 @@ export default function EditorPage() {
         {/* Left – Editor */}
         <div className={cn('flex flex-1 flex-col', activeTab === 'analysis' && 'hidden md:flex')}>
           <div className="card flex flex-1 flex-col p-0 overflow-hidden">
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-700">
+            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-zinc-800">
               <div className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
                 <FileText className="h-4 w-4" /> Document Editor
               </div>
@@ -155,7 +152,7 @@ export default function EditorPage() {
               )}
             </div>
             <textarea
-              className="flex-1 resize-none bg-white p-6 font-mono text-sm leading-relaxed text-slate-800 focus:outline-none dark:bg-slate-800 dark:text-slate-100"
+              className="flex-1 resize-none bg-white p-6 font-mono text-sm leading-relaxed text-slate-800 focus:outline-none dark:bg-zinc-900 dark:text-zinc-100"
               style={{ minHeight: 'calc(100vh - 280px)' }}
               value={editorText}
               onChange={(e) => handleTextChange(e.target.value)}

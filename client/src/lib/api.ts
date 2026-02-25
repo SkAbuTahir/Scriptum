@@ -34,14 +34,21 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// Handle 401 globally
+// Handle 401 globally — but NOT on auth endpoints (those 401s carry the real error message)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
+    const url: string = error.config?.url || '';
+    const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register');
+    if (error.response?.status === 401 && !isAuthEndpoint && typeof window !== 'undefined') {
       localStorage.removeItem('narrator_token');
       localStorage.removeItem('narrator_user');
       window.location.href = '/login';
+    }
+    // Surface the server's error message instead of generic axios text
+    const serverMsg = error.response?.data?.error;
+    if (serverMsg) {
+      return Promise.reject(new Error(serverMsg));
     }
     return Promise.reject(error);
   }

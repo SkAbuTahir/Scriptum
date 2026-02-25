@@ -1,9 +1,10 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { BookOpen, LayoutDashboard, Upload, LogOut, Menu, X } from 'lucide-react';
+import { useTheme } from '@/components/providers/ThemeProvider';
+import { BookOpen, LayoutDashboard, Upload, LogOut, Menu, X, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 
@@ -28,6 +29,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => {
@@ -73,6 +75,17 @@ export default function Navbar() {
               <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{user.name}</span>
             </div>
           )}
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="btn-ghost py-1.5 px-2.5 text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark'
+              ? <Sun className="h-4 w-4" />
+              : <Moon className="h-4 w-4" />}
+          </button>
           <button
             onClick={handleLogout}
             title="Sign out"
@@ -120,12 +133,22 @@ export default function Navbar() {
                 <UserAvatar name={user.name} />
                 <span className="text-sm text-slate-700 dark:text-slate-300">{user.name}</span>
               </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
-              >
-                <LogOut className="h-4 w-4" /> Sign out
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={toggleTheme}
+                  title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                  aria-label="Toggle theme"
+                >
+                  {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                >
+                  <LogOut className="h-4 w-4" /> Sign out
+                </button>
+              </div>
             </div>
           )}
         </div>
