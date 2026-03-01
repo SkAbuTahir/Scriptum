@@ -79,9 +79,32 @@ export type DocumentSummary = Omit<Document, 'rawText' | 'cleanedText' | 'struct
 
 // ─── Analysis ────────────────────────────────────────────────────────────────
 
+export interface ToneAnalysis {
+  dominant: string;
+  confidence: number;
+  scores: Record<string, number>;
+  description?: string;
+}
+
+export interface VocabularyStats {
+  richness: number;
+  uniqueWordRatio: number;
+  complexWordRatio: number;
+  avgWordLength: number;
+  topWords: Array<{ word: string; count: number }>;
+}
+
+export interface AnalysisProgress {
+  step: number;
+  total: number;
+  label: string;
+}
+
 export interface AnalysisResult {
   documentId: string;
   aiLikelihoodScore: number;
+  aiReasoning?: string;
+  humanizationTips?: string[];
   grammarScore: number;
   plagiarismScore: number;
   readabilityScore: number;
@@ -90,6 +113,11 @@ export interface AnalysisResult {
   wordCount: number;
   sentenceCount: number;
   analyzedAt: string;
+  // Extended analysis fields
+  readingTimeMinutes?: number;
+  fleschGradeLevel?: string;
+  avgSentenceLength?: number;
+  toneAnalysis?: ToneAnalysis;
 }
 
 // ─── Audio ───────────────────────────────────────────────────────────────────

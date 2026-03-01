@@ -1,14 +1,15 @@
 ﻿'use client';
 
 import {
-  AnalysisResult, GrammarIssue, AISuggestion, AnalysisProgress,
+  AnalysisResult, GrammarIssue, AnalysisProgress,
 } from '@/types';
 import { cn, scoreColor, positiveScoreColor, grammarScoreLabel, scoreLabel } from '@/lib/utils';
 import {
-  BarChart2, Loader2, AlertTriangle, CheckCircle2,
-  Lightbulb, MessageSquare, BookOpen,
+  Loader2, AlertTriangle, CheckCircle2,
+  Lightbulb, BookOpen,
   ChevronDown, ChevronRight, XCircle, AlertCircle, Info,
   RefreshCw, ArrowRight, Brain, Mic2, BookMarked, Gauge, Sparkles, X,
+  Bot, Shield, ShieldAlert, ScanSearch, Save, FileCheck2, Hash, Clock, BarChart3,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useTheme } from '@/components/providers/ThemeProvider';
@@ -16,9 +17,10 @@ import { useTheme } from '@/components/providers/ThemeProvider';
 interface Props {
   analysis: AnalysisResult | null;
   isAnalyzing: boolean;
-  analysisProgress: AnalysisProgress | null;
+  analysisProgress?: AnalysisProgress | null;
   onAnalyze: () => void;
   onCancelAnalyze?: () => void;
+  onSave?: () => void;
   documentStatus: string;
   expanded?: boolean;
 }
@@ -181,57 +183,9 @@ function GrammarIssueCard({ issue, isDark }: { issue: GrammarIssue; isDark: bool
   );
 }
 
-const suggestionTypeConfig: Record<string, { bg: string; icon: string }> = {
-  rewrite:    { bg: 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',         icon: '✏️' },
-  simplify:   { bg: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',     icon: '✂️' },
-  expand:     { bg: 'bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400', icon: '📖' },
-  tone:       { bg: 'bg-pink-50 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',         icon: '🎭' },
-  clarity:    { bg: 'bg-cyan-50 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',         icon: '🔍' },
-  vocabulary: { bg: 'bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',         icon: '📚' },
-  structure:  { bg: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400', icon: '🏗️' },
-  concise:    { bg: 'bg-orange-50 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400', icon: '⚡' },
-};
-
-function SuggestionCard({ suggestion, isDark }: { suggestion: AISuggestion; isDark: boolean }) {
-  const [open, setOpen] = useState(false);
-  const config = suggestionTypeConfig[suggestion.type] ?? { bg: 'bg-slate-100 text-slate-600', icon: '💡' };
-  return (
-    <div className={cn('rounded-xl border overflow-hidden', isDark ? 'border-slate-700 bg-slate-800/50' : 'border-slate-100 bg-white')}>
-      <button onClick={() => setOpen((o) => !o)} className={cn('flex w-full items-start gap-3 p-3 text-left transition-colors', isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-50')}>
-        <span className="text-base flex-shrink-0 mt-0.5">{config.icon}</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-1">
-            <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold capitalize', config.bg)}>{suggestion.type}</span>
-          </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 italic line-clamp-2">
-            "{suggestion.original.slice(0, 120)}{suggestion.original.length > 120 ? '…' : ''}"
-          </p>
-        </div>
-        {open ? <ChevronDown className="h-4 w-4 flex-shrink-0 text-slate-400 mt-0.5" /> : <ChevronRight className="h-4 w-4 flex-shrink-0 text-slate-400 mt-0.5" />}
-      </button>
-      {open && (
-        <div className={cn('border-t p-3 space-y-2.5', isDark ? 'border-slate-700 bg-slate-800/30' : 'border-slate-100 bg-slate-50')}>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Original</p>
-            <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-100 dark:border-red-900/40 px-2.5 py-2 text-xs text-red-700 dark:text-red-300 leading-relaxed">{suggestion.original}</div>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Suggested</p>
-            <div className="rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-100 dark:border-green-900/40 px-2.5 py-2 text-xs text-green-700 dark:text-green-300 leading-relaxed">{suggestion.suggested}</div>
-          </div>
-          <div className="flex items-start gap-1.5">
-            <Lightbulb className="h-3.5 w-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className={cn('text-xs', isDark ? 'text-slate-300' : 'text-slate-600')}>{suggestion.reason}</p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function TonePanel({ analysis, isDark }: { analysis: AnalysisResult; isDark: boolean }) {
   const tone = analysis.toneAnalysis;
-  if (!tone) return <div className="py-8 text-center text-xs text-slate-400">Tone analysis not available. Re-run analysis to generate it.</div>;
+  if (!tone) return null;
   const toneColors: Record<string, string> = {
     formal: 'bg-indigo-500', conversational: 'bg-emerald-500', persuasive: 'bg-orange-500',
     technical: 'bg-cyan-500', narrative: 'bg-pink-500', instructional: 'bg-violet-500',
@@ -243,128 +197,30 @@ function TonePanel({ analysis, isDark }: { analysis: AnalysisResult; isDark: boo
   };
   const sortedScores = Object.entries(tone.scores).sort(([, a], [, b]) => b - a);
   return (
-    <div className="space-y-5">
-      <div className={cn('rounded-xl border p-4', isDark ? 'bg-indigo-950/30 border-indigo-800/40' : 'bg-indigo-50 border-indigo-200')}>
-        <div className="flex items-center gap-3">
-          <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center', isDark ? 'bg-indigo-900/60' : 'bg-indigo-100')}>
-            <Mic2 className="h-5 w-5 text-indigo-400" />
-          </div>
-          <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Dominant Tone</p>
-            <p className={cn('text-lg font-bold capitalize', isDark ? 'text-white' : 'text-slate-900')}>{tone.dominant}</p>
-          </div>
-          <div className="ml-auto text-right">
-            <p className="text-xs text-slate-500">Confidence</p>
-            <p className="text-base font-bold text-indigo-500">{Math.round(tone.confidence * 100)}%</p>
-          </div>
-        </div>
-        {tone.description && <p className={cn('mt-3 text-sm leading-relaxed', isDark ? 'text-slate-300' : 'text-slate-600')}>{tone.description}</p>}
-      </div>
-      <div className="space-y-2.5">
-        <p className={cn('text-xs font-semibold uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-slate-500')}>Tone Breakdown</p>
-        {sortedScores.map(([toneName, score]) => {
-          const pct = Math.round(score * 100);
-          return (
-            <div key={toneName} className="space-y-1">
-              <div className="flex items-center justify-between">
-                <span className={cn('text-xs capitalize font-medium', isDark ? 'text-slate-300' : 'text-slate-700')}>{toneName}</span>
-                <span className="text-xs text-slate-500">{pct}%</span>
-              </div>
-              <div className={cn('h-2 w-full rounded-full', isDark ? 'bg-slate-800' : 'bg-slate-200')}>
-                <div className={cn('h-full rounded-full transition-all duration-700', toneColors[toneName] ?? 'bg-slate-500')} style={{ width: `${pct}%` }} />
-              </div>
-              <p className="text-[10px] text-slate-500">{toneDescriptions[toneName] ?? ''}</p>
+    <div className="space-y-2.5">
+      <p className={cn('text-xs font-semibold uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-slate-500')}>Tone Breakdown</p>
+      {sortedScores.map(([toneName, score]) => {
+        const pct = Math.round(score * 100);
+        return (
+          <div key={toneName} className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className={cn('text-xs capitalize font-medium', isDark ? 'text-slate-300' : 'text-slate-700')}>{toneName}</span>
+              <span className="text-xs text-slate-500">{pct}%</span>
             </div>
-          );
-        })}
-      </div>
+            <div className={cn('h-2 w-full rounded-full', isDark ? 'bg-slate-800' : 'bg-slate-200')}>
+              <div className={cn('h-full rounded-full transition-all duration-700', toneColors[toneName] ?? 'bg-slate-500')} style={{ width: `${pct}%` }} />
+            </div>
+            <p className="text-[10px] text-slate-500">{toneDescriptions[toneName] ?? ''}</p>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
-function VocabPanel({ analysis, isDark }: { analysis: AnalysisResult; isDark: boolean }) {
-  const vocab = analysis.vocabularyStats;
-  return (
-    <div className="space-y-5">
-      <div>
-        <p className={cn('text-xs font-semibold uppercase tracking-wide mb-3', isDark ? 'text-slate-400' : 'text-slate-500')}>Readability</p>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {[
-            { label: 'Reading Time', value: analysis.readingTimeMinutes != null ? `~${analysis.readingTimeMinutes} min` : '—', icon: BookOpen },
-            { label: 'Grade Level',  value: analysis.fleschGradeLevel ?? '—', icon: BookMarked },
-            { label: 'Avg Sentence', value: analysis.avgSentenceLength != null ? `${analysis.avgSentenceLength} wds` : '—', icon: MessageSquare },
-          ].map((stat) => (
-            <div key={stat.label} className={cn('rounded-xl border p-3 flex items-start gap-2.5', isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-100')}>
-              <div className={cn('h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0', isDark ? 'bg-indigo-900/40' : 'bg-indigo-50')}>
-                <stat.icon className="h-4 w-4 text-indigo-400" />
-              </div>
-              <div>
-                <p className={cn('text-sm font-bold', isDark ? 'text-white' : 'text-slate-900')}>{stat.value}</p>
-                <p className="text-[10px] text-slate-500">{stat.label}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      {vocab ? (
-        <>
-          <div>
-            <p className={cn('text-xs font-semibold uppercase tracking-wide mb-3', isDark ? 'text-slate-400' : 'text-slate-500')}>Vocabulary Stats</p>
-            {[
-              { label: 'Vocabulary Richness', value: vocab.richness,          description: 'Unique concepts and ideas per passage' },
-              { label: 'Unique Word Ratio',   value: vocab.uniqueWordRatio,   description: 'Fraction of distinct words used' },
-              { label: 'Complex Word Ratio',  value: vocab.complexWordRatio,  description: 'Words with 3+ syllables' },
-            ].map((metric) => {
-              const pct = Math.round(metric.value * 100);
-              const color = pct >= 60 ? 'bg-green-500' : pct >= 35 ? 'bg-amber-500' : 'bg-red-500';
-              return (
-                <div key={metric.label} className="mb-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className={cn('text-xs font-semibold', isDark ? 'text-slate-300' : 'text-slate-700')}>{metric.label}</span>
-                    <span className="text-xs text-slate-500">{pct}%</span>
-                  </div>
-                  <div className={cn('h-2.5 rounded-full', isDark ? 'bg-slate-800' : 'bg-slate-200')}>
-                    <div className={cn('h-full rounded-full transition-all duration-700', color)} style={{ width: `${pct}%` }} />
-                  </div>
-                  <p className="text-[10px] text-slate-500">{metric.description}</p>
-                </div>
-              );
-            })}
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <div className={cn('rounded-xl border p-3', isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-100')}>
-                <p className={cn('text-sm font-bold', isDark ? 'text-white' : 'text-slate-900')}>{vocab.avgWordLength.toFixed(1)}</p>
-                <p className="text-[10px] text-slate-500">Avg Word Length (chars)</p>
-              </div>
-              <div className={cn('rounded-xl border p-3', isDark ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-100')}>
-                <p className={cn('text-sm font-bold', isDark ? 'text-white' : 'text-slate-900')}>{Math.round(vocab.richness * 100)}/100</p>
-                <p className="text-[10px] text-slate-500">Richness Score</p>
-              </div>
-            </div>
-          </div>
-          {vocab.topWords?.length > 0 && (
-            <div>
-              <p className={cn('text-xs font-semibold uppercase tracking-wide mb-2', isDark ? 'text-slate-400' : 'text-slate-500')}>Most Frequent Words</p>
-              <div className="flex flex-wrap gap-1.5">
-                {vocab.topWords.slice(0, 15).map(({ word, count }) => (
-                  <span key={word} className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium',
-                    isDark ? 'bg-indigo-950/50 text-indigo-300 border border-indigo-800/40' : 'bg-indigo-50 text-indigo-700 border border-indigo-100')}>
-                    {word}<span className="rounded-full bg-indigo-500/20 px-1 text-[10px]">{count}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      ) : (
-        <p className="py-4 text-center text-xs text-slate-400">Vocabulary data not available. Re-run analysis to generate it.</p>
-      )}
-    </div>
-  );
-}
+type TabId = 'overview' | 'plag' | 'grammar' | 'tone';
 
-type TabId = 'overview' | 'grammar' | 'suggestions' | 'tone' | 'vocab';
-
-function AnalysisPanel({ analysis, isAnalyzing, analysisProgress, onAnalyze, onCancelAnalyze, documentStatus, expanded = false }: Props) {
+function AnalysisPanel({ analysis, isAnalyzing, analysisProgress, onAnalyze, onCancelAnalyze, onSave, documentStatus, expanded = false }: Props) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [activeTab, setActiveTab] = useState<TabId>('overview');
@@ -392,43 +248,31 @@ function AnalysisPanel({ analysis, isAnalyzing, analysisProgress, onAnalyze, onC
   const warningCount = useMemo(() => analysis?.grammarIssues?.filter((i) => i.severity === 'warning').length ?? 0, [analysis]);
   const grammarScore = analysis?.grammarScore ?? 0;
 
-  // Memoize sorted suggestions for consistency
-  const sortedSuggestions = useMemo(() => {
-    if (!analysis?.suggestions) return [];
-    return [...analysis.suggestions].sort((a, b) => (a.type || '').localeCompare(b.type || '') || (a.original || '').localeCompare(b.original || ''));
-  }, [analysis]);
-
-  // Memoize sorted topWords for vocab
-  const sortedTopWords = useMemo(() => {
-    if (!analysis?.vocabularyStats?.topWords) return [];
-    return [...analysis.vocabularyStats.topWords].sort((a, b) => b.count - a.count || a.word.localeCompare(b.word));
-  }, [analysis]);
-
   // Format numbers consistently
   const formatNum = (n: number | undefined | null, digits = 2) =>
     n == null || isNaN(n) ? '—' : n.toLocaleString(undefined, { maximumFractionDigits: digits, minimumFractionDigits: digits });
 
   // Fallbacks for all fields
   const wordCount = analysis?.wordCount ?? 0;
+  const sentenceCount = analysis?.sentenceCount ?? 0;
   const grammarIssuesCount = analysis?.grammarIssues?.length ?? 0;
-  const suggestionsCount = analysis?.suggestions?.length ?? 0;
   const readingTime = analysis?.readingTimeMinutes != null ? `~${formatNum(analysis.readingTimeMinutes, 1)} min` : '—';
-  const gradeLevel = analysis?.fleschGradeLevel != null ? formatNum(analysis.fleschGradeLevel, 1) : '—';
+  const gradeLevel = analysis?.fleschGradeLevel ?? '—';
+  const avgSentenceLength = analysis?.avgSentenceLength != null ? `${formatNum(analysis.avgSentenceLength, 1)} wds` : '—';
   const dominantTone = analysis?.toneAnalysis?.dominant ?? '—';
+  const toneConfidence = analysis?.toneAnalysis?.confidence != null ? Math.round(analysis.toneAnalysis.confidence * 100) : 0;
   const aiLikelihoodScore = analysis?.aiLikelihoodScore ?? -1;
   const readabilityScore = analysis?.readabilityScore ?? 0;
-  const vocabRichness = analysis?.vocabularyStats ? Math.round((analysis.vocabularyStats.richness ?? 0) * 100) : 0;
+  const aiVerdict = aiLikelihoodScore >= 70 ? 'Likely AI-Generated' : aiLikelihoodScore >= 40 ? 'Possibly AI-Assisted' : aiLikelihoodScore >= 0 ? 'Appears Human-Written' : '—';
 
-  // Last analyzed timestamp/hash (if available)
-  const lastAnalyzed = analysis?.lastAnalyzed ? new Date(analysis.lastAnalyzed).toLocaleString() : null;
-  const contentHash = analysis?.contentHash ?? null;
+  // Last analyzed timestamp
+  const lastAnalyzed = analysis?.analyzedAt ? new Date(analysis.analyzedAt).toLocaleString() : null;
 
   const tabs: Array<{ id: TabId; label: string; icon: React.ElementType; badge?: number }> = [
-    { id: 'overview',    label: 'Overview',   icon: Gauge },
-    { id: 'grammar',     label: 'Grammar',    icon: AlertTriangle, badge: grammarIssuesCount },
-    { id: 'suggestions', label: 'Tips',       icon: Lightbulb,     badge: suggestionsCount },
-    { id: 'tone',        label: 'Tone',       icon: Mic2 },
-    { id: 'vocab',       label: 'Vocab',      icon: BookMarked },
+    { id: 'overview', label: 'Overview', icon: Gauge },
+    { id: 'plag',     label: 'AI / Plag', icon: ShieldAlert, badge: aiLikelihoodScore >= 0 ? aiLikelihoodScore : undefined },
+    { id: 'grammar',  label: 'Grammar',   icon: AlertTriangle, badge: grammarIssuesCount },
+    { id: 'tone',     label: 'Tone',      icon: Mic2 },
   ];
 
   const cardClass = cn('rounded-2xl border', isDark ? 'bg-[#0f0f1a] border-slate-800' : 'bg-white border-slate-100');
@@ -437,10 +281,48 @@ function AnalysisPanel({ analysis, isAnalyzing, analysisProgress, onAnalyze, onC
   if (isAnalyzing && analysisProgress) return <ProgressScreen progress={analysisProgress} onCancel={onCancelAnalyze} isDark={isDark} />;
 
   if (isAnalyzing) return (
-    <div className={cn('rounded-2xl border flex flex-col items-center justify-center gap-5 py-14', isDark ? 'bg-[#0f0f1a] border-indigo-900/40' : 'bg-white border-indigo-100')}>
-      <Loader2 className="h-10 w-10 animate-spin text-indigo-500" />
-      <p className={cn('font-semibold', isDark ? 'text-white' : 'text-slate-900')}>Initialising analysis engine…</p>
-      {onCancelAnalyze && <button onClick={onCancelAnalyze} className="text-xs text-slate-400 hover:text-red-400 flex items-center gap-1"><X className="h-3.5 w-3.5" /> Cancel</button>}
+    <div className={cn('rounded-2xl border overflow-hidden', isDark ? 'bg-[#0f0f1a] border-indigo-900/40' : 'bg-white border-indigo-100')}>
+      {/* Animated header bar */}
+      <div className="h-1 w-full bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-500 bg-[length:200%_100%] animate-[shimmer_1.5s_linear_infinite]" />
+      <div className="flex flex-col items-center gap-6 py-10 px-6">
+        {/* Pulsing brain icon */}
+        <div className="relative">
+          <div className={cn('h-16 w-16 rounded-2xl flex items-center justify-center', isDark ? 'bg-indigo-950/60' : 'bg-indigo-50')}>
+            <Brain className="h-8 w-8 text-indigo-400 animate-pulse" />
+          </div>
+          <span className="absolute -bottom-1 -right-1 flex h-4 w-4">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75" />
+            <span className="relative inline-flex h-4 w-4 rounded-full bg-indigo-500" />
+          </span>
+        </div>
+        <div className="text-center space-y-1.5">
+          <p className={cn('text-base font-bold', isDark ? 'text-white' : 'text-slate-900')}>Analysing your document…</p>
+          <p className="text-xs text-slate-500">Running grammar check, AI detection, tone analysis and readability scoring</p>
+        </div>
+        {/* Skeleton cards */}
+        <div className="w-full space-y-3 max-w-sm">
+          {['AI Detection', 'Grammar Check', 'Tone Analysis', 'Readability'].map((label, i) => (
+            <div key={label} className={cn('rounded-xl border p-3 flex items-center gap-3', isDark ? 'border-slate-800 bg-slate-900/40' : 'border-slate-100 bg-slate-50')}>
+              <div className={cn('h-8 w-8 rounded-lg flex-shrink-0', isDark ? 'bg-slate-800' : 'bg-slate-200',
+                'animate-pulse')} style={{ animationDelay: `${i * 0.15}s` }} />
+              <div className="flex-1 space-y-1.5">
+                <div className={cn('h-2.5 rounded-full', isDark ? 'bg-slate-700' : 'bg-slate-200', 'animate-pulse')
+                } style={{ width: `${55 + i * 10}%`, animationDelay: `${i * 0.15}s` }} />
+                <div className={cn('h-2 rounded-full', isDark ? 'bg-slate-800' : 'bg-slate-100', 'animate-pulse')
+                } style={{ width: '40%', animationDelay: `${i * 0.15 + 0.1}s` }} />
+              </div>
+              <Loader2 className="h-4 w-4 flex-shrink-0 text-indigo-400 animate-spin" style={{ animationDelay: `${i * 0.1}s` }} />
+            </div>
+          ))}
+        </div>
+        {onCancelAnalyze && (
+          <button onClick={onCancelAnalyze} className={cn('flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+            isDark ? 'text-slate-400 hover:text-red-400 hover:bg-red-950/30' : 'text-slate-500 hover:text-red-600 hover:bg-red-50')}>
+            <X className="h-3.5 w-3.5" /> Cancel
+          </button>
+        )}
+      </div>
+      <style>{`@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }`}</style>
     </div>
   );
 
@@ -451,7 +333,7 @@ function AnalysisPanel({ analysis, isAnalyzing, analysisProgress, onAnalyze, onC
       </div>
       <div>
         <p className={cn('text-lg font-bold', isDark ? 'text-white' : 'text-slate-900')}>No analysis yet</p>
-        <p className="mt-1 text-sm text-slate-500 max-w-xs mx-auto">Run the premium AI analyser to get grammar scores, AI detection, tone analysis, vocabulary stats and writing tips.</p>
+        <p className="mt-1 text-sm text-slate-500 max-w-xs mx-auto">Run the AI analyser to get grammar scores, AI/plagiarism detection, tone analysis, and readability metrics.</p>
       </div>
       <button onClick={onAnalyze} className="flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500 transition-all shadow-sm">
         <Sparkles className="h-4 w-4" /> Run Premium Analysis
@@ -482,27 +364,31 @@ function AnalysisPanel({ analysis, isAnalyzing, analysisProgress, onAnalyze, onC
 
       {activeTab === 'overview' && (
         <div className={cn(cardClass, 'p-5 space-y-6')}>
+          {/* Score rings */}
           <div>
-            <p className={cn('text-xs font-semibold uppercase tracking-widest mb-4', isDark ? 'text-slate-500' : 'text-slate-400')}>Writing Quality</p>
+            <p className={cn('text-xs font-semibold uppercase tracking-widest mb-4', isDark ? 'text-slate-500' : 'text-slate-400')}>Writing Quality Scores</p>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <ScoreRing value={grammarScore} label="Grammar" sublabel={grammarScoreLabel(grammarScore)} isDark={isDark} />
               <ScoreRing value={readabilityScore} label="Readability" isDark={isDark} />
               <ScoreRing value={aiLikelihoodScore < 0 ? 0 : aiLikelihoodScore} label="AI Likelihood"
                 sublabel={aiLikelihoodScore >= 0 ? scoreLabel(aiLikelihoodScore, 'ai') : undefined} isDark={isDark} />
-              <ScoreRing value={vocabRichness} label="Vocab Richness" isDark={isDark} />
+              <ScoreRing value={toneConfidence} label="Tone Confidence" isDark={isDark} />
             </div>
           </div>
+
           <div className={cn('h-px', isDark ? 'bg-slate-800' : 'bg-slate-100')} />
+
+          {/* Document stats */}
           <div>
             <p className={cn('text-xs font-semibold uppercase tracking-widest mb-3', isDark ? 'text-slate-500' : 'text-slate-400')}>Document Stats</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {[
-                { label: 'Words',          value: wordCount.toLocaleString(), icon: BookOpen,      color: 'text-indigo-400' },
-                { label: 'Grammar Issues', value: grammarIssuesCount,          icon: AlertTriangle, color: errorCount > 0 ? 'text-red-400' : 'text-green-400' },
-                { label: 'Writing Tips',   value: suggestionsCount,            icon: Lightbulb,     color: 'text-amber-400' },
-                { label: 'Reading Time',   value: readingTime,                 icon: BookMarked,    color: 'text-cyan-400' },
-                { label: 'Grade Level',    value: gradeLevel,                  icon: Gauge,         color: 'text-violet-400' },
-                { label: 'Dominant Tone',  value: dominantTone,                icon: Mic2,          color: 'text-pink-400' },
+                { label: 'Words',           value: wordCount.toLocaleString(),     icon: Hash,     color: 'text-indigo-400' },
+                { label: 'Sentences',        value: sentenceCount.toLocaleString(), icon: BookOpen, color: 'text-blue-400' },
+                { label: 'Reading Time',     value: readingTime,                    icon: Clock,    color: 'text-cyan-400' },
+                { label: 'Grade Level',      value: gradeLevel,                     icon: BarChart3, color: 'text-violet-400' },
+                { label: 'Avg Sentence Len', value: avgSentenceLength,              icon: Gauge,    color: 'text-amber-400' },
+                { label: 'Dominant Tone',    value: dominantTone,                   icon: Mic2,     color: 'text-pink-400' },
               ].map((stat) => (
                 <div key={stat.label} className={cn(subCardClass, 'flex items-center gap-2.5')}>
                   <stat.icon className={cn('h-4 w-4 flex-shrink-0', stat.color)} />
@@ -514,44 +400,189 @@ function AnalysisPanel({ analysis, isAnalyzing, analysisProgress, onAnalyze, onC
               ))}
             </div>
           </div>
-          {aiLikelihoodScore >= 0 && (
-            <div className={cn('rounded-xl border p-3 text-xs',
-              aiLikelihoodScore >= 70 ? (isDark ? 'bg-red-950/30 border-red-900/40 text-red-300' : 'bg-red-50 border-red-200 text-red-700')
-              : aiLikelihoodScore >= 40 ? (isDark ? 'bg-amber-950/30 border-amber-900/40 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700')
-              : (isDark ? 'bg-green-950/30 border-green-900/40 text-green-300' : 'bg-green-50 border-green-200 text-green-700'))}>
-              <strong>AI Likelihood: {scoreLabel(aiLikelihoodScore, 'ai')}</strong>{' — '}
-              {aiLikelihoodScore >= 70 ? 'High probability this content was AI-generated.'
-                : aiLikelihoodScore >= 40 ? 'Some AI patterns detected. Review for authenticity.'
-                : 'Content appears mostly human-written.'}
+
+          <div className={cn('h-px', isDark ? 'bg-slate-800' : 'bg-slate-100')} />
+
+          {/* Quick status summary */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className={cn('rounded-xl border p-3 text-center',
+              aiLikelihoodScore >= 70 ? (isDark ? 'border-red-900/40 bg-red-950/20' : 'border-red-200 bg-red-50')
+              : aiLikelihoodScore >= 40 ? (isDark ? 'border-amber-900/40 bg-amber-950/20' : 'border-amber-200 bg-amber-50')
+              : (isDark ? 'border-green-900/40 bg-green-950/20' : 'border-green-200 bg-green-50'))}>
+              <Bot className={cn('h-4 w-4 mx-auto mb-1',
+                aiLikelihoodScore >= 70 ? 'text-red-400' : aiLikelihoodScore >= 40 ? 'text-amber-400' : 'text-green-400')} />
+              <p className={cn('text-[10px] font-semibold',
+                aiLikelihoodScore >= 70 ? (isDark ? 'text-red-300' : 'text-red-700')
+                : aiLikelihoodScore >= 40 ? (isDark ? 'text-amber-300' : 'text-amber-700')
+                : (isDark ? 'text-green-300' : 'text-green-700'))}>{aiVerdict}</p>
             </div>
-          )}
-          <div className={cn('rounded-xl border p-3 text-xs',
-            grammarScore >= 80 ? (isDark ? 'bg-green-950/30 border-green-900/40 text-green-300' : 'bg-green-50 border-green-200 text-green-700')
-            : grammarScore >= 55 ? (isDark ? 'bg-amber-950/30 border-amber-900/40 text-amber-300' : 'bg-amber-50 border-amber-200 text-amber-700')
-            : (isDark ? 'bg-red-950/30 border-red-900/40 text-red-300' : 'bg-red-50 border-red-200 text-red-700'))}>
-            <strong>Grammar: {grammarScoreLabel(grammarScore)}</strong>
-            {errorCount > 0 ? ` — ${errorCount} critical error${errorCount !== 1 ? 's' : ''} found`
-              : warningCount > 0 ? ` — ${warningCount} warning${warningCount !== 1 ? 's' : ''} to review`
-              : ' — Writing looks clean!'}
+            <div className={cn('rounded-xl border p-3 text-center',
+              grammarScore >= 80 ? (isDark ? 'border-green-900/40 bg-green-950/20' : 'border-green-200 bg-green-50')
+              : grammarScore >= 55 ? (isDark ? 'border-amber-900/40 bg-amber-950/20' : 'border-amber-200 bg-amber-50')
+              : (isDark ? 'border-red-900/40 bg-red-950/20' : 'border-red-200 bg-red-50'))}>
+              <FileCheck2 className={cn('h-4 w-4 mx-auto mb-1',
+                grammarScore >= 80 ? 'text-green-400' : grammarScore >= 55 ? 'text-amber-400' : 'text-red-400')} />
+              <p className={cn('text-[10px] font-semibold',
+                grammarScore >= 80 ? (isDark ? 'text-green-300' : 'text-green-700')
+                : grammarScore >= 55 ? (isDark ? 'text-amber-300' : 'text-amber-700')
+                : (isDark ? 'text-red-300' : 'text-red-700'))}>
+                {grammarIssuesCount === 0 ? 'No Issues' : `${grammarIssuesCount} issue${grammarIssuesCount !== 1 ? 's' : ''}`}
+              </p>
+            </div>
+            <div className={cn('rounded-xl border p-3 text-center', isDark ? 'border-indigo-900/40 bg-indigo-950/20' : 'border-indigo-200 bg-indigo-50')}>
+              <Mic2 className="h-4 w-4 mx-auto mb-1 text-indigo-400" />
+              <p className={cn('text-[10px] font-semibold capitalize', isDark ? 'text-indigo-300' : 'text-indigo-700')}>{dominantTone}</p>
+            </div>
           </div>
-          {(lastAnalyzed || contentHash) && (
-            <div className="text-xs text-slate-400 mt-2">
-              {lastAnalyzed && <span>Last analyzed: {lastAnalyzed}</span>}
-              {lastAnalyzed && contentHash && <span> &nbsp;|&nbsp; </span>}
-              {contentHash && <span>Hash: <span className="font-mono">{contentHash}</span></span>}
+
+          {lastAnalyzed && (
+            <p className="text-[11px] text-slate-500 text-center">Last analysed: {lastAnalyzed}</p>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <button onClick={onAnalyze} className={cn('flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all border',
+              isDark ? 'border-indigo-800/50 text-indigo-400 hover:bg-indigo-950/50' : 'border-indigo-200 text-indigo-600 hover:bg-indigo-50')}>
+              <RefreshCw className="h-4 w-4" /> Re-run
+            </button>
+            {onSave && (
+              <button onClick={onSave} className="flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-500 hover:to-violet-500 shadow-sm">
+                <Save className="h-4 w-4" /> Save Analysis
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'plag' && (
+        <div className={cn(cardClass, 'p-5 space-y-5')}>
+          {/* Score hero */}
+          <div className={cn('rounded-xl border p-5 flex flex-col items-center gap-4',
+            aiLikelihoodScore >= 70 ? (isDark ? 'bg-red-950/30 border-red-900/40' : 'bg-red-50 border-red-200')
+            : aiLikelihoodScore >= 40 ? (isDark ? 'bg-amber-950/30 border-amber-900/40' : 'bg-amber-50 border-amber-200')
+            : (isDark ? 'bg-green-950/30 border-green-900/40' : 'bg-green-50 border-green-200'))}>
+            <ScoreRing value={aiLikelihoodScore < 0 ? 0 : aiLikelihoodScore} label="AI Likelihood" size="lg"
+              sublabel={aiLikelihoodScore >= 0 ? scoreLabel(aiLikelihoodScore, 'ai') : undefined} isDark={isDark} />
+            <div className={cn('flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-bold',
+              aiLikelihoodScore >= 70 ? (isDark ? 'bg-red-900/50 text-red-200' : 'bg-red-100 text-red-700')
+              : aiLikelihoodScore >= 40 ? (isDark ? 'bg-amber-900/50 text-amber-200' : 'bg-amber-100 text-amber-700')
+              : (isDark ? 'bg-green-900/50 text-green-200' : 'bg-green-100 text-green-700'))}>
+              <Bot className="h-3.5 w-3.5" />{aiVerdict}
+            </div>
+          </div>
+
+          {/* What the score means */}
+          <div className={cn('rounded-xl border p-4 space-y-1', isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-100')}>
+            <p className={cn('text-[10px] font-bold uppercase tracking-widest', isDark ? 'text-slate-500' : 'text-slate-400')}>Score Guide</p>
+            {[
+              { range: '0 – 39', label: 'Human-Written', color: 'text-green-500' },
+              { range: '40 – 69', label: 'Possibly AI-Assisted', color: 'text-amber-500' },
+              { range: '70 – 100', label: 'Likely AI-Generated', color: 'text-red-500' },
+            ].map(({ range, label, color }) => (
+              <div key={range} className="flex items-center justify-between">
+                <span className="text-xs text-slate-500">{range}</span>
+                <span className={cn('text-xs font-semibold', color)}>{label}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Detection reasoning */}
+          {analysis.aiReasoning ? (
+            <div className={cn('rounded-xl border p-4', isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-white border-slate-100')}>
+              <div className="flex items-center gap-2 mb-2.5">
+                <ScanSearch className="h-4 w-4 text-indigo-400" />
+                <p className={cn('text-xs font-semibold uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-slate-500')}>Detection Analysis</p>
+              </div>
+              <p className={cn('text-sm leading-relaxed', isDark ? 'text-slate-300' : 'text-slate-700')}>{analysis.aiReasoning}</p>
+            </div>
+          ) : null}
+
+          {/* Humanization tips */}
+          {analysis.humanizationTips && analysis.humanizationTips.length > 0 && (
+            <div className="space-y-2.5">
+              <div className="flex items-center gap-2">
+                <Lightbulb className="h-4 w-4 text-amber-400" />
+                <p className={cn('text-xs font-semibold uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-slate-500')}>How to Humanize This Content</p>
+              </div>
+              <div className="space-y-2">
+                {analysis.humanizationTips.map((tip, i) => (
+                  <div key={i} className={cn('flex items-start gap-3 rounded-xl border p-3',
+                    isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-100')}>
+                    <span className={cn('flex-shrink-0 h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5',
+                      isDark ? 'bg-indigo-900/60 text-indigo-300' : 'bg-indigo-100 text-indigo-600')}>{i + 1}</span>
+                    <p className={cn('text-xs leading-relaxed', isDark ? 'text-slate-300' : 'text-slate-700')}>{tip}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-          <button onClick={onAnalyze} className={cn('w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-all border',
-            isDark ? 'border-indigo-800/50 text-indigo-400 hover:bg-indigo-950/50' : 'border-indigo-200 text-indigo-600 hover:bg-indigo-50')}>
-            <RefreshCw className="h-4 w-4" /> Re-run Analysis
-          </button>
+
+          {/* De-plagiarize strategies */}
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-violet-400" />
+              <p className={cn('text-xs font-semibold uppercase tracking-wide', isDark ? 'text-slate-400' : 'text-slate-500')}>How to Remove AI / Plagiarism</p>
+            </div>
+            <div className="space-y-2">
+              {[
+                { icon: '✍️', title: 'Rewrite in your own voice', desc: 'Paraphrase every paragraph from scratch rather than editing AI output. Use your natural sentence rhythms and vocabulary.' },
+                { icon: '👤', title: 'Add first-person perspective', desc: 'Insert personal observations, "I found that…", "In my experience…". AI rarely uses genuine first-person POV.' },
+                { icon: '📖', title: 'Use concrete examples', desc: 'Replace vague generalisations with specific real-world examples, numbers, dates, or named sources you actually know.' },
+                { icon: '✂️', title: 'Vary sentence structure', desc: 'Deliberately mix short punchy sentences with longer compound ones. Break the uniform rhythm AI tends to produce.' },
+                { icon: '🗣️', title: 'Use contractions & idioms', desc: 'Write "don\'t" instead of "do not", add colloquial phrases. AI defaults to overly formal constructions.' },
+                { icon: '🔗', title: 'Cite unique sources', desc: 'Quote experts, cite studies, or reference real conversations. This proves originality and adds verifiable context.' },
+              ].map(({ icon, title, desc }) => (
+                <div key={title} className={cn('flex items-start gap-3 rounded-xl border p-3',
+                  isDark ? 'bg-slate-900/60 border-slate-800' : 'bg-slate-50 border-slate-100')}>
+                  <span className="text-base flex-shrink-0 mt-0.5">{icon}</span>
+                  <div className="min-w-0">
+                    <p className={cn('text-xs font-semibold mb-0.5', isDark ? 'text-slate-200' : 'text-slate-800')}>{title}</p>
+                    <p className={cn('text-xs leading-relaxed', isDark ? 'text-slate-400' : 'text-slate-600')}>{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {aiLikelihoodScore < 0 && (
+            <div className="py-10 text-center">
+              <Shield className="h-10 w-10 mx-auto mb-3 text-slate-400" />
+              <p className="text-sm text-slate-400">AI detection not available.</p>
+              <p className="text-xs text-slate-500 mt-1">Re-run analysis to generate detection results.</p>
+            </div>
+          )}
         </div>
       )}
 
       {activeTab === 'grammar' && (
-        <div className={cn(cardClass, 'p-4 space-y-3')}>
+        <div className={cn(cardClass, 'p-4 space-y-4')}>
+          {/* Grammar score header */}
+          <div className={cn('rounded-xl border p-4 flex items-center gap-5',
+            grammarScore >= 80 ? (isDark ? 'border-green-900/40 bg-green-950/20' : 'border-green-200 bg-green-50')
+            : grammarScore >= 55 ? (isDark ? 'border-amber-900/40 bg-amber-950/20' : 'border-amber-200 bg-amber-50')
+            : (isDark ? 'border-red-900/40 bg-red-950/20' : 'border-red-200 bg-red-50'))}>
+            <ScoreRing value={grammarScore} label="Grammar" sublabel={grammarScoreLabel(grammarScore)} isDark={isDark} />
+            <div className="flex-1 space-y-2">
+              {[
+                { icon: XCircle,     color: 'text-red-500',   label: 'Errors',      count: errorCount },
+                { icon: AlertCircle, color: 'text-amber-500', label: 'Warnings',    count: warningCount },
+                { icon: Info,        color: 'text-blue-500',  label: 'Suggestions', count: analysis.grammarIssues.filter((i) => i.severity === 'suggestion').length },
+              ].map((s) => (
+                <div key={s.label} className="flex items-center gap-2">
+                  <s.icon className={cn('h-3.5 w-3.5 flex-shrink-0', s.color)} />
+                  <div className={cn('flex-1 h-1.5 rounded-full overflow-hidden', isDark ? 'bg-slate-800' : 'bg-slate-200')}>
+                    <div className={cn('h-full rounded-full', s.color.replace('text-', 'bg-'))}
+                      style={{ width: `${Math.min(100, (s.count / Math.max(grammarIssuesCount, 1)) * 100)}%`, transition: 'width 0.7s ease' }} />
+                  </div>
+                  <span className={cn('text-xs font-bold w-5 text-right', isDark ? 'text-slate-300' : 'text-slate-700')}>{s.count}</span>
+                  <span className="text-[10px] text-slate-500 w-16">{s.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {grammarIssuesCount === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-10 text-center">
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
               <CheckCircle2 className="h-12 w-12 text-green-500" />
               <p className={cn('font-bold text-lg', isDark ? 'text-white' : 'text-slate-900')}>No grammar issues!</p>
               <p className="text-xs text-slate-500">Your writing is grammatically clean.</p>
@@ -594,35 +625,30 @@ function AnalysisPanel({ analysis, isAnalyzing, analysisProgress, onAnalyze, onC
         </div>
       )}
 
-      {activeTab === 'suggestions' && (
-        <div className={cn(cardClass, 'p-4 space-y-3')}>
-          {suggestionsCount === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-10 text-center">
-              <CheckCircle2 className="h-12 w-12 text-green-500" />
-              <p className={cn('font-bold text-lg', isDark ? 'text-white' : 'text-slate-900')}>No suggestions</p>
-              <p className="text-xs text-slate-500">Your document looks great!</p>
-            </div>
-          ) : (
+      {activeTab === 'tone' && (
+        <div className={cn(cardClass, 'p-5 space-y-5')}>
+          {analysis.toneAnalysis ? (
             <>
-              <div className={cn(subCardClass, 'flex flex-wrap gap-1.5')}>
-                {Object.entries(suggestionTypeConfig).filter(([type]) => sortedSuggestions.some((s) => s.type === type)).map(([type, cfg]) => (
-                  <span key={type} className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs', cfg.bg)}>{cfg.icon} {type}</span>
-                ))}
+              {/* Tone hero card */}
+              <div className={cn('rounded-xl border p-5 flex items-center gap-5', isDark ? 'bg-indigo-950/30 border-indigo-800/40' : 'bg-indigo-50 border-indigo-200')}>
+                <ScoreRing value={toneConfidence} label="Confidence" size="lg" isDark={isDark} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-0.5">Dominant Tone</p>
+                  <p className={cn('text-2xl font-black capitalize', isDark ? 'text-white' : 'text-slate-900')}>{analysis.toneAnalysis.dominant}</p>
+                  {analysis.toneAnalysis.description && (
+                    <p className={cn('text-xs leading-relaxed mt-1.5', isDark ? 'text-slate-400' : 'text-slate-600')}>{analysis.toneAnalysis.description}</p>
+                  )}
+                </div>
               </div>
-              <p className="text-xs text-slate-500">{suggestionsCount} writing tip{suggestionsCount !== 1 ? 's' : ''} — click to expand</p>
-              <div className="space-y-2">
-                {sortedSuggestions.map((sug, i) => <SuggestionCard key={i} suggestion={sug} isDark={isDark} />)}
-              </div>
+              <TonePanel analysis={analysis} isDark={isDark} />
             </>
+          ) : (
+            <div className="flex flex-col items-center gap-3 py-10 text-center">
+              <Mic2 className="h-10 w-10 text-slate-400" />
+              <p className={cn('font-semibold', isDark ? 'text-white' : 'text-slate-900')}>Tone data not available</p>
+              <p className="text-xs text-slate-500">Re-run analysis to detect writing tone.</p>
+            </div>
           )}
-        </div>
-      )}
-
-      {activeTab === 'tone' && <div className={cn(cardClass, 'p-5')}><TonePanel analysis={analysis} isDark={isDark} /></div>}
-      {activeTab === 'vocab' && (
-        <div className={cn(cardClass, 'p-5')}>
-          {/* Pass sortedTopWords to VocabPanel if needed for deterministic display */}
-          <VocabPanel analysis={{ ...analysis, vocabularyStats: { ...analysis.vocabularyStats, topWords: sortedTopWords } }} isDark={isDark} />
         </div>
       )}
     </div>

@@ -53,16 +53,38 @@ export interface AISuggestion {
   reason: string;
 }
 
+export interface ToneAnalysis {
+  dominant: string;
+  confidence: number;
+  scores: Record<string, number>;
+  description?: string;
+}
+
+export interface VocabularyStats {
+  richness: number;
+  uniqueWordRatio: number;
+  complexWordRatio: number;
+  avgWordLength: number;
+  topWords: Array<{ word: string; count: number }>;
+}
+
 export interface AnalysisResult {
-  aiLikelihoodScore: number | null;  // 0–100 probability, null if unavailable
+  aiLikelihoodScore: number | null;
+  aiReasoning: string;
+  humanizationTips: string[];
   grammarIssues: GrammarIssue[];
-  grammarScore: number;            // 0–100 where 100 = perfect grammar
-  plagiarismScore: number;         // 0–100
+  grammarScore: number;
+  plagiarismScore: number;
   suggestions: AISuggestion[];
-  readabilityScore?: number;
-  wordCount?: number;
-  sentenceCount?: number;
+  readabilityScore: number;
+  wordCount: number;
+  sentenceCount: number;
   analyzedAt: Date;
+  // Extended fields
+  readingTimeMinutes: number;
+  fleschGradeLevel: string;
+  avgSentenceLength: number;
+  toneAnalysis: ToneAnalysis;
 }
 
 export interface ExtractedContent {

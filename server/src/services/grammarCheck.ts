@@ -1,144 +1,82 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+﻿import axios from 'axios';
 import { GrammarIssue } from '../types';
 
-// ─── Gemini client (lazy init) ────────────────────────────────────────────────
+// --- LanguageTool API (free public API -- no key required) -------------------
 
-let _gemini: GoogleGenerativeAI | null = null;
+const LT_API = 'https://api.languagetool.org/v2/check';
+const LT_MAX_CHARS = 20_000; // free API limit per request
 
-function getGemini(): GoogleGenerativeAI {
-  if (!_gemini) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error('GEMINI_API_KEY is not configured');
-    _gemini = new GoogleGenerativeAI(apiKey);
-  }
-  return _gemini;
+interface LTMatch {
+  message: string;
+  shortMessage?: string;
+  offset: number;
+  length: number;
+  replacements: Array<{ value: string }>;
+  context: { text: string };
+  rule: {
+    id: string;
+    description: string;
+    issueType?: string;
+    category: { id: string; name: string };
+  };
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const CHUNK_SIZE = 8_000; // keep well within Gemini Flash context window per call
-
-function splitIntoChunks(text: string, size: number): string[] {
-  const chunks: string[] = [];
-  let i = 0;
-  while (i < text.length) {
-    let end = Math.min(i + size, text.length);
-    if (end < text.length) {
-      const lastPeriod = text.lastIndexOf('. ', end);
-      if (lastPeriod > i + size / 2) end = lastPeriod + 1;
-    }
-    chunks.push(text.slice(i, end));
-    i = end;
-  }
-  return chunks;
+function mapSeverity(
+  categoryId: string,
+  issueType?: string
+): 'error' | 'warning' | 'suggestion' {
+  if (['TYPOS', 'GRAMMAR'].includes(categoryId)) return 'error';
+  if (issueType === 'misspelling' || issueType === 'typographical') return 'error';
+  if (['PUNCTUATION', 'CONFUSED_WORDS', 'CASING'].includes(categoryId)) return 'warning';
+  if (['STYLE', 'REDUNDANCY', 'TYPOGRAPHY'].includes(categoryId)) return 'suggestion';
+  return 'warning';
 }
 
-// ─── Core Gemini grammar check ────────────────────────────────────────────────
-
-async function checkChunkWithGemini(
-  text: string,
-  baseOffset: number
-): Promise<GrammarIssue[]> {
-  const model = getGemini().getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    generationConfig: {
-      responseMimeType: 'application/json',
-      temperature: 0.1,
-    },
-  });
-
-  const prompt = `You are a professional grammar, spelling, and style checker.
-
-Analyse the following text carefully and return a JSON array of ALL issues found.
-For each issue include the character offset inside THIS text snippet.
-
-Severity levels:
-- "error": Incorrect grammar, spelling errors, wrong word usage — must be fixed
-- "warning": Awkward phrasing, questionable punctuation, ambiguous reference — should be fixed
-- "suggestion": Style improvements, wordiness, readability enhancements — nice to fix
-
-Categories to check:
-- GRAMMAR: Subject-verb agreement, tense consistency, article usage, pronoun reference
-- SPELLING: Misspelled words, typos, homophones
-- PUNCTUATION: Missing/extra commas, apostrophes, semicolons
-- STYLE: Wordiness, passive voice overuse, redundancy
-- VOCABULARY: Wrong word choice, informal register, repetition
-- TYPOS: Accidental characters, doubled words
-
-Return ONLY a valid JSON array (empty [] if no issues):
-[
-  {
-    "message": "Full description of the problem and why it is wrong",
-    "shortMessage": "Brief label (e.g. 'Subject-verb agreement')",
-    "severity": "error|warning|suggestion",
-    "offset": <integer — char index in text where issue starts>,
-    "length": <integer — char length of problematic text>,
-    "context": "<the surrounding sentence for context, max 120 chars>",
-    "replacements": ["best fix", "alternative fix"],
-    "rule": {
-      "id": "RULE_ID",
-      "description": "What rule this violates",
-      "category": "GRAMMAR|SPELLING|PUNCTUATION|STYLE|VOCABULARY|TYPOS"
-    }
-  }
-]
-
-Text:
-"""
-${text}
-"""`;
-
-  try {
-    const result = await model.generateContent(prompt);
-    const raw = result.response.text().trim();
-
-    // Strip markdown code fences if Gemini wraps the JSON
-    const clean = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-
-    const parsed = JSON.parse(clean) as GrammarIssue[];
-    if (!Array.isArray(parsed)) return [];
-
-    return parsed.map((issue) => ({
-      ...issue,
-      offset: (issue.offset ?? 0) + baseOffset,
-      replacements: (issue.replacements ?? []).slice(0, 5),
-    }));
-  } catch (err) {
-    console.error('Gemini grammar check failed for chunk:', err);
-    return [];
-  }
-}
-
-// ─── Public API ───────────────────────────────────────────────────────────────
+// --- Public API --------------------------------------------------------------
 
 export async function checkGrammar(
   text: string,
-  _language = 'en-US'
+  language = 'en-US'
 ): Promise<GrammarIssue[]> {
   if (!text || text.trim().length === 0) return [];
 
-  const chunks = splitIntoChunks(text, CHUNK_SIZE);
-  let offset = 0;
-  const allIssues: GrammarIssue[] = [];
+  const sample = text.slice(0, LT_MAX_CHARS);
 
-  for (const chunk of chunks) {
-    const issues = await checkChunkWithGemini(chunk, offset);
-    allIssues.push(...issues);
-    offset += chunk.length;
+  try {
+    const response = await axios.post<{ matches: LTMatch[] }>(
+      LT_API,
+      new URLSearchParams({ text: sample, language }),
+      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15_000 }
+    );
 
-    if (chunks.length > 1) {
-      // Small delay to avoid Gemini rate-limiting
-      await new Promise((resolve) => setTimeout(resolve, 300));
-    }
+    const matches: LTMatch[] = response.data.matches ?? [];
+
+    // Deduplicate by offset
+    const seen = new Set<number>();
+    return matches
+      .filter((m) => {
+        if (seen.has(m.offset)) return false;
+        seen.add(m.offset);
+        return true;
+      })
+      .map((m) => ({
+        message:      m.message,
+        shortMessage: m.shortMessage || undefined,
+        offset:       m.offset,
+        length:       m.length,
+        replacements: m.replacements.slice(0, 5).map((r) => r.value),
+        context:      m.context.text,
+        severity:     mapSeverity(m.rule.category.id, m.rule.issueType),
+        rule: {
+          id:          m.rule.id,
+          description: m.rule.description,
+          category:    m.rule.category.name,
+        },
+      }));
+  } catch (err) {
+    console.error('LanguageTool grammar check failed:', err);
+    return [];
   }
-
-  // Deduplicate by offset
-  const seen = new Set<number>();
-  return allIssues.filter((issue) => {
-    if (seen.has(issue.offset)) return false;
-    seen.add(issue.offset);
-    return true;
-  });
 }
 
 export function summariseGrammarIssues(issues: GrammarIssue[]): {
@@ -163,20 +101,18 @@ export function summariseGrammarIssues(issues: GrammarIssue[]): {
 }
 
 /**
- * Compute a grammar score (0–100) based on issue density and severity.
+ * Compute a grammar score (0-100) based on issue density and severity.
  * 100 = perfect, 0 = heavily flawed.
  */
 export function computeGrammarScore(wordCount: number, issues: GrammarIssue[]): number {
   if (wordCount === 0) return 100;
   if (issues.length === 0) return 100;
 
-  // Weighted penalty: errors cost more than warnings, which cost more than suggestions
   const weights: Record<string, number> = { error: 4, warning: 2, suggestion: 1 };
   const totalPenalty = issues.reduce((sum, issue) => {
     return sum + (weights[issue.severity ?? 'warning'] ?? 2);
   }, 0);
 
-  // Normalise by document length — 1 error per 100 words removes ~4 points
   const penaltyPerWord = totalPenalty / wordCount;
   const score = Math.max(0, Math.round(100 - penaltyPerWord * 100));
   return Math.min(100, score);
