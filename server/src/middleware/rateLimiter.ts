@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { RateLimitRequestHandler } from 'express-rate-limit';
 
 /**
  * General API rate limiter – 100 requests per 15 minutes per IP
@@ -53,6 +53,21 @@ export const uploadLimiter = rateLimit({
   message: {
     success: false,
     error: 'Upload limit reached. Please try again after 30 minutes.',
+  },
+});
+
+/**
+ * Deepgram temp-key endpoint – 10 keys per user per hour
+ * Prevents abuse of our primary Deepgram API key.
+ */
+export const deepgramTokenLimiter: RateLimitRequestHandler = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Deepgram token rate limit reached. Please try again after 1 hour.',
   },
 });
 

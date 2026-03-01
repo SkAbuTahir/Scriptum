@@ -13,6 +13,8 @@ const OPTIONAL_VARS = [
   { key: 'TEXTGEARS_API_KEY',   warn: 'Readability fallback to local Flesch only' },
   { key: 'RAPIDAPI_KEY',        warn: 'Twinword tone analysis disabled, Gemini used instead' },
   { key: 'CLIENT_URL',          warn: 'CORS will default to http://localhost:3000' },
+  { key: 'DEEPGRAM_API_KEY',    warn: 'Teleprompter mic-sync and TTS will be unavailable' },
+  { key: 'DEEPGRAM_PROJECT_ID', warn: 'Deepgram temp-key generation will fail — set project ID for production' },
 ] as const;
 
 export function validateEnv(): void {

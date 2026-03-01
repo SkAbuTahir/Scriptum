@@ -251,3 +251,21 @@
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
+/* ─── Teleprompter token highlight ─────────────────────────────────────────── */
+/* Applied directly via DOM class manipulation — no React re-render required.   */
+
+.tp-token {
+  color: rgba(255,255,255,0.22);
+}
+
+.tp-token.tp-spoken {
+  color: rgba(255,255,255,0.45);
+}
+
+.tp-token.tp-active {
+  color: #ffffff;
+  text-shadow: 0 0 24px rgba(99,102,241,0.70), 0 0 8px rgba(99,102,241,0.40);
+  font-weight: 600;
+}
+

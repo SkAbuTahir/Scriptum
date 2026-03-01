@@ -13,6 +13,7 @@ import analysisRoutes from './routes/analysis';
 import audioRoutes from './routes/audio';
 import exportRoutes from './routes/export';
 import userRoutes from './routes/user';
+import deepgramRoutes from './routes/deepgram';
 
 const app: Application = express();
 
@@ -74,6 +75,7 @@ app.use('/api/analyze', analysisRoutes);
 app.use('/api/generate-audio', audioRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/user', userRoutes);
+app.use('/api/deepgram', deepgramRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {
