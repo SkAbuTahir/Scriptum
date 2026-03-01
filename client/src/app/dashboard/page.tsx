@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -49,7 +49,7 @@ function scoreColor(variant: 'grammar' | 'readability' | 'ai', value: number) {
 
 function RowSkeleton() {
   return (
-    <div className="flex items-center gap-4 px-5 py-4 border-b border-slate-100 dark:border-white/[0.04]">
+    <div className="flex items-center gap-4 px-5 py-4 border-b border-slate-200 dark:border-white/[0.08]">
       <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-white/[0.04] animate-pulse flex-shrink-0" />
       <div className="flex-1 space-y-2 min-w-0">
         <div className="h-3 w-48 rounded bg-slate-200 dark:bg-white/[0.06] animate-pulse" />
@@ -79,6 +79,152 @@ function StatSkeleton() {
       <div className="h-7 w-12 rounded bg-slate-200 dark:bg-white/[0.06] animate-pulse" />
       <div className="h-2.5 w-20 rounded bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
     </div>
+  );
+}
+
+// ─── Document Row  (Aceternity spotlight hover) ────────────────────────────────
+
+interface DocRowProps {
+  doc: DocumentSummary;
+  isLast: boolean;
+  deletingId: string | null;
+  onDelete: (e: React.MouseEvent, id: string, name: string) => Promise<void>;
+}
+
+function DocRow({ doc, isLast, deletingId, onDelete }: DocRowProps) {
+  const router  = useRouter();
+  const rowRef  = useRef<HTMLLIElement>(null);
+  const [pos, setPos]     = useState({ x: 0, y: 0 });
+  const [isHov, setIsHov] = useState(false);
+
+  const Icon       = sourceIcon(doc.sourceType);
+  const isAnalyzed = (doc.status === 'analyzed' || doc.status === 'ready') && doc.analysisRunAt;
+  const hasGrammar = isAnalyzed && doc.grammarScore        != null;
+  const hasReading = isAnalyzed && doc.readabilityScore    != null;
+  const hasAI      = isAnalyzed && doc.aiScore             != null;
+  const issueCount = doc.grammarIssues?.length ?? 0;
+
+  return (
+    <li
+      ref={rowRef}
+      className={cn(
+        'group relative flex items-center gap-4 px-5 py-4 cursor-pointer transition-colors overflow-hidden',
+        !isLast && 'border-b border-slate-200 dark:border-white/[0.08]',
+      )}
+      onMouseMove={(e) => {
+        const r = rowRef.current?.getBoundingClientRect();
+        if (r) setPos({ x: e.clientX - r.left, y: e.clientY - r.top });
+      }}
+      onMouseEnter={() => setIsHov(true)}
+      onMouseLeave={() => setIsHov(false)}
+      onClick={() => router.push(`/editor/${doc._id}`)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === 'Enter' && router.push(`/editor/${doc._id}`)}
+    >
+      {/* Aceternity spotlight */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 transition-opacity duration-300"
+        style={{
+          opacity: isHov ? 1 : 0,
+          background: `radial-gradient(340px circle at ${pos.x}px ${pos.y}px, rgba(99,102,241,0.08) 0%, transparent 65%)`,
+        }}
+      />
+      {/* Left accent bar */}
+      <div className="absolute inset-y-0 left-0 w-[2px] bg-indigo-500 scale-y-0 group-hover:scale-y-100 transition-transform origin-center rounded-r-full" />
+
+      {/* Icon */}
+      <div className="relative z-10 flex-shrink-0 h-9 w-9 rounded-xl bg-slate-100 dark:bg-white/[0.05] flex items-center justify-center group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/10 transition-colors">
+        <Icon className="h-4 w-4 text-slate-400 dark:text-white/30 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
+      </div>
+
+      {/* Name + meta */}
+      <div className="relative z-10 flex-1 min-w-0">
+        <p className="text-sm font-semibold text-slate-700 dark:text-white/80 group-hover:text-slate-900 dark:group-hover:text-white transition-colors truncate">
+          {doc.originalFileName}
+        </p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-[11px] text-slate-400 dark:text-white/30">
+          <span className="capitalize">{sourceTypeLabel(doc.sourceType)}</span>
+          <span>·</span>
+          <span>{formatWordCount(doc.wordCount)}</span>
+          <span>·</span>
+          <span>{formatRelativeTime(doc.createdAt)}</span>
+          {isAnalyzed && (
+            <>
+              <span className="hidden sm:inline">·</span>
+              <span className="hidden sm:inline-flex items-center gap-1 text-emerald-500 dark:text-emerald-500/60">
+                <CheckCircle2 className="h-2.5 w-2.5" />
+                analysed {formatRelativeTime(doc.analysisRunAt!)}
+              </span>
+            </>
+          )}
+          {!isAnalyzed && (
+            <>
+              <span>·</span>
+              <span className="inline-flex items-center gap-1 text-amber-500 dark:text-amber-500/60">
+                <Clock className="h-2.5 w-2.5" /> not analysed
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Score tokens */}
+      {isAnalyzed ? (
+        <div className="relative z-10 hidden sm:flex items-center gap-5 flex-shrink-0">
+          {hasGrammar && <ScoreToken label="Grammar" value={doc.grammarScore!}     variant="grammar"     />}
+          {hasReading && <ScoreToken label="Read."   value={doc.readabilityScore!} variant="readability" />}
+          {hasAI      && <ScoreToken label="AI %"    value={doc.aiScore!}           variant="ai"          />}
+          {issueCount > 0 ? (
+            <div className="flex flex-col items-center min-w-[44px]">
+              <span className="text-sm font-bold tabular-nums text-amber-500 dark:text-amber-400">{issueCount}</span>
+              <span className="text-[10px] text-slate-400 dark:text-white/25 mt-0.5">issues</span>
+            </div>
+          ) : (
+            <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-500/60 flex-shrink-0" />
+          )}
+        </div>
+      ) : (
+        <button
+          onClick={(e) => { e.stopPropagation(); router.push(`/analysis/${doc._id}`); }}
+          className="relative z-10 hidden sm:block flex-shrink-0 text-xs font-medium text-indigo-500 dark:text-indigo-400/60 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
+        >
+          Run analysis →
+        </button>
+      )}
+
+      {/* Actions — visible on hover */}
+      <div
+        className="relative z-10 flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={(e) => { e.stopPropagation(); router.push(`/editor/${doc._id}`); }}
+          title="Edit"
+          className="rounded-lg p-2 text-slate-300 dark:text-white/25 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.08] transition-colors"
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); router.push(`/analysis/${doc._id}`); }}
+          title="Analysis"
+          className="rounded-lg p-2 text-slate-300 dark:text-white/25 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
+        >
+          <ArrowUpRight className="h-3.5 w-3.5" />
+        </button>
+        <button
+          onClick={(e) => onDelete(e, doc._id, doc.originalFileName)}
+          disabled={deletingId === doc._id}
+          title="Delete"
+          className="rounded-lg p-2 text-slate-300 dark:text-white/20 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-30"
+        >
+          {deletingId === doc._id
+            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            : <Trash2 className="h-3.5 w-3.5" />}
+        </button>
+      </div>
+    </li>
   );
 }
 
@@ -195,13 +341,7 @@ export default function DashboardPage() {
     });
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#08080f]">
-      {/* Ambient glow — dark mode only */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-x-0 top-0 h-[480px] hidden dark:block"
-        style={{ background: 'radial-gradient(ellipse 70% 40% at 50% -10%, rgba(99,102,241,0.09) 0%, transparent 70%)' }}
-      />
+    <div className="min-h-screen">
 
       <main className="relative mx-auto max-w-5xl px-4 pt-12 pb-16 sm:px-6">
 
@@ -295,7 +435,7 @@ export default function DashboardPage() {
         <div className="rounded-2xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-[#0d0d18] overflow-hidden">
 
           {/* Toolbar */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-white/[0.05]">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 dark:border-white/[0.08]">
             <div className="relative flex-1 max-w-xs">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-300 dark:text-white/20 pointer-events-none" />
               <input
@@ -326,7 +466,7 @@ export default function DashboardPage() {
 
           {/* Column headers */}
           {!isLoading && sortedFiltered.length > 0 && (
-            <div className="hidden sm:flex items-center px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-300 dark:text-white/15 border-b border-slate-100 dark:border-white/[0.04]">
+            <div className="hidden sm:flex items-center px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-white/20 border-b border-slate-200 dark:border-white/[0.08]">
               <span className="flex-1">Document</span>
               <span className="mr-[90px]">Scores</span>
             </div>
@@ -359,128 +499,21 @@ export default function DashboardPage() {
             </div>
           ) : (
             <ul>
-              {sortedFiltered.map((doc, idx) => {
-                const Icon       = sourceIcon(doc.sourceType);
-                const isAnalyzed = (doc.status === 'analyzed' || doc.status === 'ready') && doc.analysisRunAt;
-                const hasGrammar = isAnalyzed && doc.grammarScore  != null;
-                const hasReading = isAnalyzed && doc.readabilityScore != null;
-                const hasAI      = isAnalyzed && doc.aiScore        != null;
-                const issueCount = doc.grammarIssues?.length ?? 0;
-
-                return (
-                  <li
-                    key={doc._id}
-                    className={cn(
-                      'group relative flex items-center gap-4 px-5 py-4 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.02]',
-                      idx < sortedFiltered.length - 1 && 'border-b border-slate-100 dark:border-white/[0.04]',
-                    )}
-                    onClick={() => router.push(`/editor/${doc._id}`)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === 'Enter' && router.push(`/editor/${doc._id}`)}
-                  >
-                    {/* Left accent */}
-                    <div className="absolute inset-y-0 left-0 w-[2px] bg-indigo-500 scale-y-0 group-hover:scale-y-100 transition-transform origin-center rounded-r-full" />
-
-                    {/* Icon */}
-                    <div className="flex-shrink-0 h-9 w-9 rounded-xl bg-slate-100 dark:bg-white/[0.04] flex items-center justify-center group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/10 transition-colors">
-                      <Icon className="h-4 w-4 text-slate-400 dark:text-white/25 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
-                    </div>
-
-                    {/* Name + meta */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-700 dark:text-white/80 group-hover:text-slate-900 dark:group-hover:text-white transition-colors truncate">
-                        {doc.originalFileName}
-                      </p>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-[11px] text-slate-400 dark:text-white/22">
-                        <span className="capitalize">{sourceTypeLabel(doc.sourceType)}</span>
-                        <span>·</span>
-                        <span>{formatWordCount(doc.wordCount)}</span>
-                        <span>·</span>
-                        <span>{formatRelativeTime(doc.createdAt)}</span>
-                        {isAnalyzed && (
-                          <>
-                            <span className="hidden sm:inline">·</span>
-                            <span className="hidden sm:inline-flex items-center gap-1 text-emerald-500 dark:text-emerald-500/50">
-                              <CheckCircle2 className="h-2.5 w-2.5" />
-                              analysed {formatRelativeTime(doc.analysisRunAt!)}
-                            </span>
-                          </>
-                        )}
-                        {!isAnalyzed && (
-                          <>
-                            <span>·</span>
-                            <span className="inline-flex items-center gap-1 text-amber-500 dark:text-amber-500/50">
-                              <Clock className="h-2.5 w-2.5" /> not analysed
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Score tokens */}
-                    {isAnalyzed ? (
-                      <div className="hidden sm:flex items-center gap-5 flex-shrink-0">
-                        {hasGrammar && <ScoreToken label="Grammar" value={doc.grammarScore!}     variant="grammar"     />}
-                        {hasReading && <ScoreToken label="Read."   value={doc.readabilityScore!} variant="readability" />}
-                        {hasAI      && <ScoreToken label="AI %"    value={doc.aiScore!}           variant="ai"          />}
-                        {issueCount > 0 ? (
-                          <div className="flex flex-col items-center min-w-[44px]">
-                            <span className="text-sm font-bold tabular-nums text-amber-500 dark:text-amber-400">{issueCount}</span>
-                            <span className="text-[10px] text-slate-400 dark:text-white/25 mt-0.5">issues</span>
-                          </div>
-                        ) : (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-500/50 flex-shrink-0" />
-                        )}
-                      </div>
-                    ) : (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); router.push(`/analysis/${doc._id}`); }}
-                        className="hidden sm:block flex-shrink-0 text-xs font-medium text-indigo-500 dark:text-indigo-400/60 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
-                      >
-                        Run analysis →
-                      </button>
-                    )}
-
-                    {/* Actions — visible on hover */}
-                    <div
-                      className="flex-shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={(e) => { e.stopPropagation(); router.push(`/editor/${doc._id}`); }}
-                        title="Edit"
-                        className="rounded-lg p-2 text-slate-300 dark:text-white/25 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); router.push(`/analysis/${doc._id}`); }}
-                        title="Analysis"
-                        className="rounded-lg p-2 text-slate-300 dark:text-white/25 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
-                      >
-                        <ArrowUpRight className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => handleDelete(e, doc._id, doc.originalFileName)}
-                        disabled={deletingId === doc._id}
-                        title="Delete"
-                        className="rounded-lg p-2 text-slate-300 dark:text-white/20 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-30"
-                      >
-                        {deletingId === doc._id
-                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          : <Trash2 className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
+              {sortedFiltered.map((doc, idx) => (
+                <DocRow
+                  key={doc._id}
+                  doc={doc}
+                  isLast={idx === sortedFiltered.length - 1}
+                  deletingId={deletingId}
+                  onDelete={handleDelete}
+                />
+              ))}
             </ul>
           )}
 
           {/* Footer */}
           {!isLoading && sortedFiltered.length > 0 && (
-            <div className="px-5 py-3 border-t border-slate-100 dark:border-white/[0.04] flex items-center justify-between">
+            <div className="px-5 py-3 border-t border-slate-200 dark:border-white/[0.08] flex items-center justify-between">
               <p className="text-[11px] text-slate-400 dark:text-white/20">
                 {sortedFiltered.length} document{sortedFiltered.length !== 1 ? 's' : ''}
                 {query && <> matching <span className="text-slate-600 dark:text-white/35">&ldquo;{query}&rdquo;</span></>}

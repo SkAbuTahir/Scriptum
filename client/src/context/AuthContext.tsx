@@ -37,8 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Hydrate from localStorage on mount
   useEffect(() => {
     try {
-      const token = localStorage.getItem('narrator_token');
-      const userRaw = localStorage.getItem('narrator_user');
+      const token = localStorage.getItem('scriptum_token');
+      const userRaw = localStorage.getItem('scriptum_user');
       if (token && userRaw) {
         const user = JSON.parse(userRaw) as User;
         setState({ user, token, isLoading: false, isAuthenticated: true });
@@ -51,8 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const persist = useCallback((token: string, user: User) => {
-    localStorage.setItem('narrator_token', token);
-    localStorage.setItem('narrator_user', JSON.stringify(user));
+    localStorage.setItem('scriptum_token', token);
+    localStorage.setItem('scriptum_user', JSON.stringify(user));
     setState({ user, token, isLoading: false, isAuthenticated: true });
   }, []);
 
@@ -67,8 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('narrator_token');
-    localStorage.removeItem('narrator_user');
+    localStorage.removeItem('scriptum_token');
+    localStorage.removeItem('scriptum_user');
     setState({ user: null, token: null, isLoading: false, isAuthenticated: false });
   }, []);
 

@@ -97,7 +97,7 @@ export default function ExportPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
+      <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
       </div>
     );
@@ -114,7 +114,7 @@ export default function ExportPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="min-h-screen">
       <main className="animate-page-in mx-auto max-w-3xl px-4 py-8 pb-28 sm:px-6">
         <div className="mb-6 flex items-center gap-2 text-sm text-slate-500">
           <Link href="/dashboard" className="hover:text-brand-600">Dashboard</Link>

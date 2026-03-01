@@ -23,7 +23,7 @@ export default function FloatingDockNav() {
 
   const items: DockItem[] = [
     {
-      title: 'Narrator Studio',
+      title: 'Scriptum',
       icon: <BookOpen className="h-full w-full" />,
       href: '/dashboard',
     },

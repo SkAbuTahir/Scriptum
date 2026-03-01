@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { uploadApi } from '@/lib/api';
 import { motion } from 'framer-motion';
-import { DotBackground } from '@/components/ui/backgrounds';
 import { AceFileUpload } from '@/components/ui/ace-file-upload';
 import { ShimmerButton } from '@/components/ui/ace-input';
 import { MeteorCard } from '@/components/ui/meteor-card';
@@ -88,7 +87,7 @@ export default function UploadPage() {
   ];
 
   return (
-    <DotBackground className="flex min-h-screen flex-col items-center justify-start px-4 pb-32 pt-16">
+    <div className="flex min-h-screen flex-col items-center justify-start px-4 pb-32 pt-16">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -293,7 +292,7 @@ export default function UploadPage() {
           </div>
         </MeteorCard>
       </motion.div>
-    </DotBackground>
+    </div>
   );
 }
 

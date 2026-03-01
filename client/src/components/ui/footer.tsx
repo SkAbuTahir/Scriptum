@@ -57,11 +57,11 @@ export function Footer() {
                 <BookOpen className="h-4 w-4 text-white" />
               </div>
               <span className="text-sm font-bold text-slate-900 dark:text-white">
-                Narrator Studio
+                Scriptum
               </span>
             </Link>
             <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-500 dark:text-white/30">
-              AI-powered document narration, grammar analysis, and presentation tools — all in one workspace.
+              AI-powered document intelligence, grammar analysis, and presentation tools — all in one workspace.
             </p>
             {/* Socials */}
             <div className="mt-5 flex items-center gap-1">
@@ -106,7 +106,7 @@ export function Footer() {
         {/* Bottom bar */}
         <div className="mt-6 flex flex-col items-center justify-between gap-3 sm:flex-row">
           <p className="text-[11px] text-slate-400 dark:text-white/20">
-            © {new Date().getFullYear()} Narrator Studio. All rights reserved.
+            © {new Date().getFullYear()} Scriptum. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             {['Privacy Policy', 'Terms of Service'].map((t) => (

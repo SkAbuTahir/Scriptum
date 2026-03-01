@@ -27,7 +27,7 @@ const api: AxiosInstance = axios.create({
 // Attach JWT token from localStorage
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('narrator_token');
+    const token = localStorage.getItem('scriptum_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -42,8 +42,8 @@ api.interceptors.response.use(
     const url: string = error.config?.url || '';
     const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register');
     if (error.response?.status === 401 && !isAuthEndpoint && typeof window !== 'undefined') {
-      localStorage.removeItem('narrator_token');
-      localStorage.removeItem('narrator_user');
+      localStorage.removeItem('scriptum_token');
+      localStorage.removeItem('scriptum_user');
       window.location.href = '/login';
     }
     // Surface the server's error message instead of generic axios text

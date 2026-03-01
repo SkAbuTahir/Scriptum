@@ -40,6 +40,9 @@ const config: Config = {
         'pulse-slow': 'pulse 3s ease-in-out infinite',
         shimmer: 'shimmer 2.5s ease-in-out infinite',
         'meteor-effect': 'meteor 6s linear infinite',
+        spotlight: 'spotlight 2s ease 0.75s 1 forwards',
+        'border-beam': 'border-beam 6s linear infinite',
+        'gradient-x': 'gradient-x 4s ease infinite',
       },
       keyframes: {
         scrollUp: {
@@ -62,6 +65,18 @@ const config: Config = {
           '0%': { transform: 'rotate(215deg) translateX(0)', opacity: '1' },
           '70%': { opacity: '1' },
           '100%': { transform: 'rotate(215deg) translateX(-600px)', opacity: '0' },
+        },
+        spotlight: {
+          '0%': { opacity: '0', transform: 'translate(-72%, -62%) scale(0.5)' },
+          '100%': { opacity: '1', transform: 'translate(-50%, -40%) scale(1)' },
+        },
+        'border-beam': {
+          '0%, 100%': { offsetDistance: '0%' },
+          '100%': { offsetDistance: '100%' },
+        },
+        'gradient-x': {
+          '0%, 100%': { backgroundPosition: '0% 50%' },
+          '50%': { backgroundPosition: '100% 50%' },
         },
       },
       backgroundImage: {

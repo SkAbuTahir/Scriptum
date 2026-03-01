@@ -45,7 +45,7 @@ export default function Navbar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 shadow-sm">
             <BookOpen className="h-4 w-4 text-white" />
           </div>
-          <span className="text-sm font-semibold text-slate-900 dark:text-white">Narrator Studio</span>
+          <span className="text-sm font-semibold text-slate-900 dark:text-white">Scriptum</span>
         </Link>
 
         {/* Desktop nav */}

@@ -20,13 +20,13 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Narrator Studio',
-    template: '%s | Narrator Studio',
+    default: 'Scriptum',
+    template: '%s | Scriptum',
   },
   description:
-    'AI-powered content processing and publishing studio. Upload, analyse, edit, and export documents — with teleprompter mode, narration, and PowerPoint export.',
+    'AI-powered content processing and publishing studio. Upload, analyse, edit, and export documents — with teleprompter mode, text-to-speech, and PowerPoint export.',
   keywords: ['AI writing', 'content studio', 'teleprompter', 'grammar check', 'document editor'],
-  authors: [{ name: 'Narrator Studio' }],
+  authors: [{ name: 'Scriptum' }],
   robots: 'noindex',
 };
 
@@ -53,6 +53,16 @@ export default function RootLayout({
       </head>
       <body>
         <ThemeProvider>
+          {/* Global static grid — fixed to viewport, never scrolls */}
+          <div
+            aria-hidden
+            className="pointer-events-none fixed inset-0 -z-10"
+            style={{
+              backgroundImage:
+                'linear-gradient(to right, var(--grid-color) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px)',
+              backgroundSize: '40px 40px',
+            }}
+          />
           <AuthProvider>
             <ToasterProvider />
             <FloatingDockNav />

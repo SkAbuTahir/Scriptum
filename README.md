@@ -1,3 +1,3 @@
 ﻿# Scriptum
 
-AI-powered document narrator and teleprompter platform.
+AI-powered document intelligence and teleprompter platform.

@@ -51,7 +51,7 @@ export default function EditorPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-zinc-950">
+      <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
       </div>
     );
@@ -59,7 +59,7 @@ export default function EditorPage() {
 
   if (error || !document) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-zinc-950">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4">
         <AlertCircle className="h-12 w-12 text-red-400" />
         <p className="text-lg font-medium">{error || 'Document not found'}</p>
         <Link href="/dashboard" className="btn-secondary">
@@ -70,7 +70,7 @@ export default function EditorPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-zinc-950">
+    <div className="flex min-h-screen flex-col">
       {/* Editor toolbar */}
       <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur dark:border-zinc-800 dark:bg-zinc-950/80">
         <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-6">

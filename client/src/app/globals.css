@@ -20,6 +20,7 @@
     --destructive-foreground: 255 255 255;
     --ring: 79 70 229;
     --radius: 0.5rem;
+    --grid-color: rgba(99,102,241,0.13);
   }
 
   .dark {
@@ -38,6 +39,7 @@
     --destructive: 239 68 68;
     --destructive-foreground: 255 255 255;
     --ring: 129 140 248;
+    --grid-color: rgba(99,102,241,0.10);
   }
 
   *,
@@ -54,7 +56,7 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-900 dark:text-slate-50;
+    @apply bg-white text-slate-900 antialiased dark:bg-[#09090f] dark:text-slate-50;
     font-feature-settings: 'rlig' 1, 'calt' 1, 'ss01' 1;
   }
 

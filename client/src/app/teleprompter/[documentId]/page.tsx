@@ -13,7 +13,7 @@ export default function TeleprompterPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-900">
+      <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-brand-400" />
       </div>
     );
@@ -21,7 +21,7 @@ export default function TeleprompterPage() {
 
   if (error || !document) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-900 text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-white">
         <AlertCircle className="h-12 w-12 text-red-400" />
         <p>{error || 'Document not found'}</p>
         <Link href="/dashboard" className="btn-secondary">
