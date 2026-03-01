@@ -1,34 +1,25 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Document, AnalysisResult, AISuggestion } from '@/types';
+import { Document, AnalysisResult } from '@/types';
 import { documentApi, analysisApi } from '@/lib/api';
 import { sanitize } from '@/lib/sanitize';
 import toast from 'react-hot-toast';
-
-/** Sanitize string fields inside an AISuggestion. */
-function sanitizeSuggestion(s: AISuggestion): AISuggestion {
-  return {
-    ...s,
-    original: sanitize(s.original),
-    suggested: sanitize(s.suggested),
-    reason: sanitize(s.reason),
-  };
-}
 
 /** Strip HTML from text fields coming from the API (defense-in-depth). */
 function sanitizeDoc(doc: Document): Document {
   return {
     ...doc,
-    rawText: sanitize(doc.rawText),
-    cleanedText: sanitize(doc.cleanedText),
+    rawText:          sanitize(doc.rawText),
+    cleanedText:      sanitize(doc.cleanedText),
     originalFileName: sanitize(doc.originalFileName),
-    suggestions: doc.suggestions?.map(sanitizeSuggestion),
+    humanizationTips: doc.humanizationTips?.map(sanitize) ?? [],
+    claimFlags:       doc.claimFlags ?? [],
     grammarIssues: doc.grammarIssues?.map((g) => ({
       ...g,
-      message: sanitize(g.message),
+      message:      sanitize(g.message),
       shortMessage: g.shortMessage ? sanitize(g.shortMessage) : g.shortMessage,
-      context: g.context ? sanitize(g.context) : g.context,
+      context:      g.context ? sanitize(g.context) : g.context,
       replacements: g.replacements?.map(sanitize),
     })),
   };
@@ -37,14 +28,14 @@ function sanitizeDoc(doc: Document): Document {
 function sanitizeAnalysis(a: AnalysisResult): AnalysisResult {
   return {
     ...a,
-    suggestions: a.suggestions?.map(sanitizeSuggestion),
-    aiReasoning: a.aiReasoning ? sanitize(a.aiReasoning) : a.aiReasoning,
+    aiReasoning:      a.aiReasoning      ? sanitize(a.aiReasoning) : a.aiReasoning,
     humanizationTips: a.humanizationTips?.map(sanitize),
+    claimFlags:       a.claimFlags       ?? [],
     grammarIssues: a.grammarIssues?.map((g) => ({
       ...g,
-      message: sanitize(g.message),
+      message:      sanitize(g.message),
       shortMessage: g.shortMessage ? sanitize(g.shortMessage) : g.shortMessage,
-      context: g.context ? sanitize(g.context) : g.context,
+      context:      g.context ? sanitize(g.context) : g.context,
       replacements: g.replacements?.map(sanitize),
     })),
   };
@@ -79,16 +70,19 @@ export function useDocument(documentId: string): UseDocumentReturn {
       // If document was previously analyzed, reconstruct analysis state from it
       if (doc.analysisRunAt && doc.aiScore !== null) {
         setAnalysis({
-          documentId: doc._id,
-          aiLikelihoodScore: doc.aiScore ?? 0,
-          grammarScore:      doc.grammarScore ?? 0,
-          plagiarismScore:   doc.plagiarismScore ?? 0,
-          readabilityScore:  doc.readabilityScore ?? 0,
-          grammarIssues:     doc.grammarIssues,
-          suggestions:       doc.suggestions,
-          wordCount:         doc.wordCount,
-          sentenceCount:     0,
-          analyzedAt:        doc.analysisRunAt,
+          documentId:       doc._id,
+          aiScore:          doc.aiScore         ?? 0,
+          grammarScore:     doc.grammarScore     ?? 0,
+          readabilityScore: doc.readabilityScore ?? 0,
+          grammarIssues:    doc.grammarIssues    ?? [],
+          claimFlags:       doc.claimFlags       ?? [],
+          longSentences:    doc.longSentences    ?? [],
+          humanizationTips: doc.humanizationTips ?? [],
+          aiReasoning:      doc.aiReasoning      ?? '',
+          tone:             doc.tone             ?? undefined,
+          wordCount:        doc.wordCount,
+          sentenceCount:    0,
+          analyzedAt:       doc.analysisRunAt,
         });
       }
     } catch (err) {

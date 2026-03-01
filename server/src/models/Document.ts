@@ -100,20 +100,22 @@ export interface IDocument extends Document {
     reason: string;
   }>;
   // ── Cached analysis fields ──────────────────────────────────────────────
-  contentHash:       string | null;       // SHA-256 slice of cleanedText — detects changes
-  sentenceCount:     number | null;
+  contentHash:        string | null;
+  sentenceCount:      number | null;
   readingTimeMinutes: number | null;
-  fleschGradeLevel:  string | null;
-  avgSentenceLength: number | null;
-  toneAnalysis: {
-    dominant: string;
-    confidence: number;
-    scores: Record<string, number>;
-    description?: string;
+  fleschGradeLevel:   string | null;
+  avgSentenceLength:  number | null;
+  longSentences:      string[];
+  claimFlags:         string[];
+  tone: {
+    dominantTone: string;
+    confidence:   number;
+    breakdown:    Record<string, number>;
+    biasFlags:    string[];
   } | null;
-  aiReasoning:       string | null;
-  humanizationTips:  string[];
-  analysisRunAt: Date | null;
+  aiReasoning:        string | null;
+  humanizationTips:   string[];
+  analysisRunAt:      Date | null;
   status: 'pending' | 'processing' | 'analyzed' | 'ready';
   createdAt: Date;
   updatedAt: Date;
@@ -179,52 +181,29 @@ const documentSchema = new Schema<IDocument>(
       default: null,
     },
     grammarIssues: [grammarIssueSchema],
-    suggestions: [suggestionSchema],
     // ── Analysis cache fields ─────────────────────────────────────────────
-    contentHash: {
-      type: String,
-      default: null,
-    },
-    sentenceCount: {
-      type: Number,
-      default: null,
-    },
-    readingTimeMinutes: {
-      type: Number,
-      default: null,
-    },
-    fleschGradeLevel: {
-      type: String,
-      default: null,
-    },
-    avgSentenceLength: {
-      type: Number,
-      default: null,
-    },
-    toneAnalysis: {
+    contentHash: { type: String, default: null },
+    sentenceCount: { type: Number, default: null },
+    readingTimeMinutes: { type: Number, default: null },
+    fleschGradeLevel: { type: String, default: null },
+    avgSentenceLength: { type: Number, default: null },
+    longSentences: { type: [String], default: [] },
+    claimFlags: { type: [String], default: [] },
+    tone: {
       type: new Schema(
         {
-          dominant:    { type: String },
-          confidence:  { type: Number },
-          scores:      { type: Schema.Types.Mixed },
-          description: { type: String },
+          dominantTone: { type: String },
+          confidence:   { type: Number },
+          breakdown:    { type: Schema.Types.Mixed },
+          biasFlags:    { type: [String], default: [] },
         },
         { _id: false }
       ),
       default: null,
     },
-    aiReasoning: {
-      type: String,
-      default: null,
-    },
-    humanizationTips: {
-      type: [String],
-      default: [],
-    },
-    analysisRunAt: {
-      type: Date,
-      default: null,
-    },
+    aiReasoning: { type: String, default: null },
+    humanizationTips: { type: [String], default: [] },
+    analysisRunAt: { type: Date, default: null },
     status: {
       type: String,
       enum: ['pending', 'processing', 'analyzed', 'ready'],

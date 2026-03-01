@@ -66,10 +66,13 @@ export interface Document {
   wordCount: number;
   aiScore: number | null;
   grammarScore: number | null;
-  plagiarismScore: number | null;
   readabilityScore: number | null;
   grammarIssues: GrammarIssue[];
-  suggestions: AISuggestion[];
+  claimFlags: string[];
+  longSentences: string[];
+  humanizationTips: string[];
+  aiReasoning: string | null;
+  tone: ToneResult | null;
   analysisRunAt: string | null;
   status: 'pending' | 'processing' | 'analyzed' | 'ready';
   createdAt: string;
@@ -80,45 +83,36 @@ export type DocumentSummary = Omit<Document, 'rawText' | 'cleanedText' | 'struct
 
 // ─── Analysis ────────────────────────────────────────────────────────────────
 
-export interface ToneAnalysis {
-  dominant: string;
-  confidence: number;
-  scores: Record<string, number>;
-  description?: string;
-}
-
-export interface VocabularyStats {
-  richness: number;
-  uniqueWordRatio: number;
-  complexWordRatio: number;
-  avgWordLength: number;
-  topWords: Array<{ word: string; count: number }>;
+export interface ToneResult {
+  dominantTone: string;
+  confidence:   number;
+  breakdown:    Record<string, number>;
+  biasFlags:    string[];
 }
 
 export interface AnalysisProgress {
-  step: number;
+  step:  number;
   total: number;
   label: string;
 }
 
 export interface AnalysisResult {
-  documentId: string;
-  aiLikelihoodScore: number;
-  aiReasoning?: string;
-  humanizationTips?: string[];
-  grammarScore: number;
-  plagiarismScore: number;
-  readabilityScore: number;
-  grammarIssues: GrammarIssue[];
-  suggestions: AISuggestion[];
-  wordCount: number;
-  sentenceCount: number;
-  analyzedAt: string;
-  // Extended analysis fields
+  documentId:          string;
+  aiScore:             number;
+  aiReasoning?:        string;
+  humanizationTips?:   string[];
+  claimFlags?:         string[];
+  grammarScore:        number;
+  grammarIssues:       GrammarIssue[];
+  readabilityScore:    number;
+  wordCount:           number;
+  sentenceCount:       number;
+  analyzedAt:          string;
   readingTimeMinutes?: number;
-  fleschGradeLevel?: string;
-  avgSentenceLength?: number;
-  toneAnalysis?: ToneAnalysis;
+  fleschGradeLevel?:   string;
+  avgSentenceLength?:  number;
+  longSentences?:      string[];
+  tone?:               ToneResult;
 }
 
 // ─── Audio ───────────────────────────────────────────────────────────────────

@@ -46,45 +46,31 @@ export interface GrammarIssue {
   };
 }
 
-export interface AISuggestion {
-  type: 'rewrite' | 'simplify' | 'expand' | 'tone' | 'clarity' | 'vocabulary' | 'structure' | 'concise';
-  original: string;
-  suggested: string;
-  reason: string;
-}
+// ─── Analysis ────────────────────────────────────────────────────────────────
 
-export interface ToneAnalysis {
-  dominant: string;
+export interface ToneResult {
+  dominantTone: string;
   confidence: number;
-  scores: Record<string, number>;
-  description?: string;
-}
-
-export interface VocabularyStats {
-  richness: number;
-  uniqueWordRatio: number;
-  complexWordRatio: number;
-  avgWordLength: number;
-  topWords: Array<{ word: string; count: number }>;
+  breakdown: Record<string, number>;
+  biasFlags: string[];
 }
 
 export interface AnalysisResult {
-  aiLikelihoodScore: number | null;
-  aiReasoning: string;
-  humanizationTips: string[];
-  grammarIssues: GrammarIssue[];
-  grammarScore: number;
-  plagiarismScore: number;
-  suggestions: AISuggestion[];
-  readabilityScore: number;
-  wordCount: number;
-  sentenceCount: number;
-  analyzedAt: Date;
-  // Extended fields
-  readingTimeMinutes: number;
-  fleschGradeLevel: string;
-  avgSentenceLength: number;
-  toneAnalysis: ToneAnalysis;
+  aiScore:             number | null;
+  aiReasoning:         string;
+  humanizationTips:    string[];
+  claimFlags:          string[];
+  grammarIssues:       GrammarIssue[];
+  grammarScore:        number;
+  readabilityScore:    number;
+  fleschGradeLevel:    string;
+  avgSentenceLength:   number;
+  readingTimeMinutes:  number;
+  longSentences:       string[];
+  wordCount:           number;
+  sentenceCount:       number;
+  tone:                ToneResult;
+  analyzedAt:          Date;
 }
 
 export interface ExtractedContent {
