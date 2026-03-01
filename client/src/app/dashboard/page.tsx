@@ -21,6 +21,9 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Footer } from '@/components/ui/footer';
+import { GlowCard } from '@/components/ui/meteor-card';
+import { BorderBeam } from '@/components/ui/border-beam';
+import { NumberTicker } from '@/components/ui/number-ticker';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -74,8 +77,11 @@ function RowSkeleton() {
 
 function StatSkeleton() {
   return (
-    <div className="p-5 bg-white dark:bg-[#0d0d18] flex flex-col gap-1">
-      <div className="h-2.5 w-16 rounded bg-slate-200 dark:bg-white/[0.06] animate-pulse mb-1" />
+    <div className="rounded-2xl border border-slate-200 dark:border-white/[0.07] bg-white dark:bg-white/[0.02] p-5 flex flex-col gap-1">
+      <div className="flex items-center justify-between mb-2">
+        <div className="h-2 w-14 rounded bg-slate-200 dark:bg-white/[0.06] animate-pulse" />
+        <div className="h-3.5 w-3.5 rounded bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
+      </div>
       <div className="h-7 w-12 rounded bg-slate-200 dark:bg-white/[0.06] animate-pulse" />
       <div className="h-2.5 w-20 rounded bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
     </div>
@@ -109,7 +115,7 @@ function DocRow({ doc, isLast, deletingId, onDelete }: DocRowProps) {
       ref={rowRef}
       className={cn(
         'group relative flex items-center gap-4 px-5 py-4 cursor-pointer transition-colors overflow-hidden',
-        !isLast && 'border-b border-slate-200 dark:border-white/[0.08]',
+        !isLast && 'border-b border-slate-200 dark:border-white/[0.2]',
       )}
       onMouseMove={(e) => {
         const r = rowRef.current?.getBoundingClientRect();
@@ -345,13 +351,23 @@ export default function DashboardPage() {
 
       <main className="relative mx-auto max-w-5xl px-4 pt-12 pb-16 sm:px-6">
 
+        {/* Top indigo glow */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-64 opacity-30 dark:opacity-20 -z-10"
+          style={{ background: 'radial-gradient(ellipse 70% 50% at 50% -5%, rgba(99,102,241,0.35) 0%, transparent 80%)' }}
+        />
+
         {/* ── Header ──────────────────────────────────────────────────── */}
-        <div className="mb-10 flex items-end justify-between gap-4">
+        <div className="mb-2 flex items-end justify-between gap-2">
           <div>
-            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600 dark:border-indigo-500/20 dark:bg-indigo-500/8 dark:text-indigo-400">
-              <Sparkles className="h-3 w-3" /> Workspace
+            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-indigo-200/80 bg-indigo-50/80 px-3 py-0.5 backdrop-blur-sm dark:border-indigo-500/20 dark:bg-indigo-500/10">
+              <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-indigo-600">
+                <Sparkles className="h-2 w-2 text-white" />
+              </span>
+              <span className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">Workspace</span>
             </div>
-            <h1 className="text-[28px] font-bold tracking-tight text-slate-900 dark:text-white leading-none">
+            <h1 className="text-[28px] font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
               {isLoading ? 'Loading…' : `Hello, ${firstName}`}
             </h1>
             <p className="mt-1.5 text-sm text-slate-500 dark:text-white/35">
@@ -364,7 +380,7 @@ export default function DashboardPage() {
           </div>
           <Link
             href="/upload"
-            className="flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/20 hover:bg-indigo-500 transition-colors"
+            className="group flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all active:scale-[0.97]"
           >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">New Document</span>
@@ -372,32 +388,35 @@ export default function DashboardPage() {
           </Link>
         </div>
 
+        {/* ── Stats label ─────────────────────────────────────────────── */}
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <TrendingUp className="h-3.5 w-3.5 text-indigo-500" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">Overview</span>
+          </div>
+          <div className="h-px flex-1 bg-slate-200 dark:bg-white/[0.06]" />
+        </div>
+
         {/* ── Stats row ───────────────────────────────────────────────── */}
-        <div className="mb-8 grid grid-cols-2 gap-px sm:grid-cols-4 rounded-2xl overflow-hidden border border-slate-200 dark:border-white/[0.06] bg-slate-200 dark:bg-white/[0.03]">
+        <div className="mb-5 grid grid-cols-2 gap-8 sm:grid-cols-4">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
-            : stats.map((s, i) => (
-                <div
-                  key={s.label}
-                  className={cn(
-                    'p-5 bg-white dark:bg-[#0d0d18] flex flex-col',
-                    i < 3 && 'sm:border-r border-slate-200 dark:border-white/[0.05] sm:border-b-0',
-                    i < 2 && 'border-b border-slate-200 dark:border-white/[0.05]',
-                  )}
-                >
+            : stats.map((s) => (
+                <GlowCard key={s.label} className="p-5 flex flex-col border border-slate-200/30">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-white/25">{s.label}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-white/25">{s.label}</p>
                     <s.icon className={cn('h-3.5 w-3.5', s.accent)} />
                   </div>
-                  <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{s.value}</p>
+                  <p className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">{s.value}</p>
                   <p className="mt-1 text-[11px] text-slate-400 dark:text-white/25">{s.sub}</p>
-                </div>
+                </GlowCard>
               ))}
         </div>
 
         {/* ── AI Usage Meter ──────────────────────────────────────────── */}
         {usage && (
-          <div className="mb-8 flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-[#0d0d18] px-5 py-4">
+          <div className="relative mb-8 flex items-center gap-3 overflow-hidden rounded-2xl border border-indigo-200/60 dark:border-indigo-500/20 bg-white/80 backdrop-blur-sm dark:bg-[#0d0d1a]/80 px-5 py-4">
+            <BorderBeam duration={10} colorFrom="#6366f1" colorTo="#a855f7" />
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex-shrink-0">
               <Zap className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
             </div>
@@ -431,8 +450,20 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* ── Documents label ──────────────────────────────────────────── */}
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex items-center gap-1.5">
+            <FileText className="h-3.5 w-3.5 text-indigo-500" />
+            <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-500 dark:text-indigo-400">Documents</span>
+          </div>
+          <div className="h-px flex-1 bg-slate-200 dark:bg-white/[0.06]" />
+          <span className="text-[11px] font-semibold text-slate-400 dark:text-white/30">
+            {!isLoading && `${sortedFiltered.length} of ${total}`}
+          </span>
+        </div>
+
         {/* ── Document list ────────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-[#0d0d18] overflow-hidden">
+        <div className="rounded-2xl border border-slate-200 dark:border-white/[0.3] bg-white/70 backdrop-blur-sm dark:bg-white/[0.02] overflow-hidden">
 
           {/* Toolbar */}
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-200 dark:border-white/[0.08]">
