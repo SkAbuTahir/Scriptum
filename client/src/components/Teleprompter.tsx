@@ -6,7 +6,7 @@ import { useTeleprompter } from '@/hooks/useTeleprompter';
 import { cn } from '@/lib/utils';
 import {
   Play, Pause, RotateCcw, ChevronLeft,
-  Sun, Moon, Minus, Plus, Gauge, FlipHorizontal, VolumeX, Mic,
+  Sun, Moon, Minus, Plus, Gauge, FlipHorizontal, Mic,
 } from 'lucide-react';
 
 // ── Small animated waveform shown while narrating ──────────────────────────
@@ -55,6 +55,7 @@ export default function TeleprompterView({ text, documentTitle, documentId }: Pr
   const {
     isPlaying, speed, fontSize, theme, mirror, progress,
     currentCharIndex, isSpeaking,
+    isSyncMode, isListening, toggleSyncMode,
     scrollRef, toggle, reset, setSpeed, setFontSize, setTheme, toggleMirror,
   } = useTeleprompter(text);
 
@@ -116,6 +117,11 @@ export default function TeleprompterView({ text, documentTitle, documentId }: Pr
           e.preventDefault();
           reset();
           break;
+        case 'v':
+        case 'V':
+          e.preventDefault();
+          toggleSyncMode();
+          break;
         case 'ArrowUp':
           e.preventDefault();
           setSpeed(speed + 1);
@@ -137,7 +143,7 @@ export default function TeleprompterView({ text, documentTitle, documentId }: Pr
           break;
       }
     },
-    [toggle, reset, setSpeed, setFontSize, toggleMirror, speed, fontSize]
+    [toggle, reset, setSpeed, setFontSize, toggleMirror, toggleSyncMode, speed, fontSize]
   );
 
   useEffect(() => {
@@ -205,6 +211,22 @@ export default function TeleprompterView({ text, documentTitle, documentId }: Pr
               >
                 <SpeakingWave dark={isDark} />
                 <span>Narrating</span>
+              </span>
+            )}
+            {isListening && (
+              <span
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold',
+                  isDark
+                    ? 'bg-indigo-500/12 text-indigo-300 ring-1 ring-indigo-500/25'
+                    : 'bg-indigo-50 text-indigo-600 ring-1 ring-indigo-200',
+                )}
+              >
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-current"
+                  style={{ animation: 'livepulse 1s ease-in-out infinite' }}
+                />
+                Listening
               </span>
             )}
           </div>
@@ -384,24 +406,34 @@ export default function TeleprompterView({ text, documentTitle, documentId }: Pr
                 : <Play className="h-5 w-5 translate-x-0.5" />}
             </button>
 
-            {/* Voice status */}
-            <div
+            {/* Sync-mode toggle: click to switch between TTS narrate ↔ mic listen */}
+            <button
+              onClick={toggleSyncMode}
               className={cn(
                 'flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs transition-all',
-                isSpeaking
+                isSyncMode
+                  ? isDark
+                    ? 'bg-indigo-500/15 text-indigo-300 ring-1 ring-indigo-500/25'
+                    : 'bg-indigo-100 text-indigo-600'
+                  : isSpeaking
                   ? isDark
                     ? 'bg-yellow-500/12 text-yellow-400'
                     : 'bg-amber-50 text-amber-600'
                   : isDark
-                    ? 'text-white/15'
-                    : 'text-gray-300',
+                  ? 'text-white/20 hover:text-white/60 hover:bg-white/[0.06]'
+                  : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100',
               )}
-              title={isSpeaking ? 'Voice active' : 'Voice off'}
+              title={isSyncMode ? 'Mic sync ON — press V or click to switch to narrate mode' : 'Click or press V to enable mic sync (you speak, text follows)'}
             >
-              {isSpeaking
+              {isListening || isSpeaking
                 ? <Mic className="h-4 w-4" style={{ animation: 'livepulse 1s ease-in-out infinite' }} />
-                : <VolumeX className="h-4 w-4" />}
-            </div>
+                : <Mic className="h-4 w-4" />}
+              <span className={cn('hidden sm:inline text-[10px] font-semibold tracking-wide uppercase',
+                isSyncMode ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+              )}>
+                {isSyncMode ? 'Sync' : 'TTS'}
+              </span>
+            </button>
           </div>
 
           {/* Right: speed · font · mirror · theme */}
@@ -486,6 +518,7 @@ export default function TeleprompterView({ text, documentTitle, documentId }: Pr
           {[
             { key: 'Space', label: 'Play/Pause' },
             { key: 'R',     label: 'Reset'      },
+            { key: 'V',     label: 'Sync mode'  },
             { key: '↑ ↓',  label: 'Speed'      },
             { key: '+ −',  label: 'Font size'   },
             { key: 'M',     label: 'Mirror'     },
