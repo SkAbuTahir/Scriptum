@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import DocumentModel from '../models/Document';
 import { extractContent } from '../services/textExtraction';
+import { extractFromWebsite } from '../services/webScraper';
 import { structureDocument } from '../services/documentStructure';
 import { deleteFile } from '../utils/fileFilter';
 import { AuthenticatedRequest, ApiResponse, UploadResult } from '../types';
@@ -126,11 +127,78 @@ export const uploadYouTube = async (
     const isUserError = message.includes('transcript') ||
       message.includes('caption') ||
       message.includes('private') ||
+      message.includes('unavailable') ||
+      message.includes('rate-limiting') ||
       message.includes('disabled') ||
       message.includes('Invalid YouTube');
     res.status(isUserError ? 400 : 500).json({
       success: false,
       error: message,
     });
+  }
+};
+
+// ─── Upload Website URL ───────────────────────────────────────────────────────
+
+export const uploadWebsiteValidation = [
+  body('websiteUrl')
+    .trim()
+    .notEmpty()
+    .withMessage('Website URL is required')
+    .isURL({ protocols: ['http', 'https'], require_protocol: true })
+    .withMessage('Please enter a valid URL starting with http:// or https://'),
+];
+
+export const uploadWebsite = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(422).json({ success: false, error: errors.array()[0].msg });
+    return;
+  }
+
+  const { websiteUrl } = req.body as { websiteUrl: string };
+
+  try {
+    const extracted   = await extractFromWebsite(websiteUrl);
+    const structured  = structureDocument(extracted.cleanedText, extracted.structuredSections);
+
+    const doc = await DocumentModel.create({
+      userId:           req.user!.userId,
+      originalFileName: extracted.pageTitle ?? websiteUrl,
+      sourceType:       'website',
+      websiteUrl,
+      rawText:          extracted.rawText,
+      cleanedText:      extracted.cleanedText,
+      structuredContent: structured,
+      wordCount:        extracted.wordCount,
+      status:           'pending',
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        documentId:       doc._id.toString(),
+        originalFileName: doc.originalFileName,
+        rawText:          doc.rawText,
+        cleanedText:      doc.cleanedText,
+        wordCount:        doc.wordCount,
+        sourceType:       'website',
+      },
+      message: 'Website content scraped and processed successfully',
+    });
+  } catch (err) {
+    console.error('Website upload error:', err);
+    const message = err instanceof Error ? err.message : 'Website scraping failed';
+    const isUserError =
+      message.includes('blocked') ||
+      message.includes('login') ||
+      message.includes('JavaScript') ||
+      message.includes('Invalid URL') ||
+      message.includes('readable text') ||
+      message.includes('http');
+    res.status(isUserError ? 400 : 500).json({ success: false, error: message });
   }
 };

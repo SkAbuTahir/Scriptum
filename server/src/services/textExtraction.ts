@@ -1,7 +1,15 @@
 import fs from 'fs';
 import mammoth from 'mammoth';
 import pdfParse from 'pdf-parse';
-import axios from 'axios';
+import {
+  YoutubeTranscript,
+  TranscriptResponse,
+  YoutubeTranscriptDisabledError,
+  YoutubeTranscriptNotAvailableError,
+  YoutubeTranscriptNotAvailableLanguageError,
+  YoutubeTranscriptVideoUnavailableError,
+  YoutubeTranscriptTooManyRequestError,
+} from 'youtube-transcript';
 import { ExtractedContent, DocumentSection } from '../types';
 
 // ─── Text Cleaning ─────────────────────────────────────────────────────────────
@@ -160,103 +168,67 @@ export async function extractFromYouTube(youtubeUrl: string): Promise<ExtractedC
   }
 
   const videoId = videoIdMatch[1];
-  const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
-  // ── Step 1: fetch the watch page with browser-like headers ───────────────
-  let pageHtml: string;
+  let segments: TranscriptResponse[];
   try {
-    const resp = await axios.get<string>(watchUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) ' +
-          'AppleWebKit/537.36 (KHTML, like Gecko) ' +
-          'Chrome/122.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        Accept:
-          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      },
-      timeout: 15000,
-    });
-    pageHtml = resp.data as string;
+    // fetchTranscript accepts the full URL or just the video ID
+    segments = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' })
+      .catch(() => YoutubeTranscript.fetchTranscript(videoId));
   } catch (err) {
-    throw new Error(
-      `Could not reach YouTube. Check the server's internet connection. (${
-        err instanceof Error ? err.message : err
-      })`
-    );
-  }
-
-  // ── Step 2: extract ytInitialPlayerResponse JSON ─────────────────────────
-  let playerResponse: Record<string, unknown>;
-  try {
-    const match = pageHtml.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});\s*(?:var|const|let|<\/script)/s);
-    if (!match?.[1]) throw new Error('ytInitialPlayerResponse not found in page');
-    playerResponse = JSON.parse(match[1]) as Record<string, unknown>;
-  } catch {
-    throw new Error(
-      'Could not parse YouTube page data. YouTube may have changed its page structure.'
-    );
-  }
-
-  // ── Step 3: locate a caption track URL ───────────────────────────────────
-  type CaptionTrack = { baseUrl: string; languageCode: string; kind?: string };
-  const tracks: CaptionTrack[] = (
-    (playerResponse?.captions as Record<string, unknown>)
-      ?.playerCaptionsTracklistRenderer as Record<string, unknown>
-  )?.captionTracks as CaptionTrack[] ?? [];
-
-  if (!tracks || tracks.length === 0) {
-    throw new Error(
-      'This YouTube video has no transcript/captions available. ' +
+    if (
+      err instanceof YoutubeTranscriptDisabledError ||
+      err instanceof YoutubeTranscriptNotAvailableError
+    ) {
+      throw new Error(
+        'This YouTube video has no transcript/captions available. ' +
         'Please try a video that has auto-generated or manually added subtitles.'
-    );
+      );
+    }
+    if (err instanceof YoutubeTranscriptVideoUnavailableError) {
+      throw new Error(
+        'This YouTube video is unavailable or private. Please check the URL and try again.'
+      );
+    }
+    if (err instanceof YoutubeTranscriptTooManyRequestError) {
+      throw new Error(
+        'YouTube is rate-limiting transcript requests. Please try again in a few minutes.'
+      );
+    }
+    if (err instanceof YoutubeTranscriptNotAvailableLanguageError) {
+      // Should not reach here since we fallback, but guard anyway
+      throw new Error(
+        'No English transcript found. Please try a video with English captions.'
+      );
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Could not fetch YouTube transcript: ${msg}`);
   }
 
-  // Prefer: manual English → auto-generated English → any English → first available
-  const preferred =
-    tracks.find((t) => t.languageCode === 'en' && t.kind !== 'asr') ??
-    tracks.find((t) => t.languageCode === 'en') ??
-    tracks.find((t) => t.languageCode?.startsWith('en')) ??
-    tracks[0];
-
-  const captionUrl = preferred.baseUrl;
-
-  // ── Step 4: fetch the timed-text XML ─────────────────────────────────────
-  let xmlText: string;
-  try {
-    const xmlResp = await axios.get<string>(captionUrl, { timeout: 10000 });
-    xmlText = xmlResp.data as string;
-  } catch (err) {
+  if (!segments || segments.length === 0) {
     throw new Error(
-      `Failed to download caption XML. (${err instanceof Error ? err.message : err})`
+      'The transcript was empty. The video may not have readable subtitles.'
     );
   }
 
-  // ── Step 5: parse XML into plain text ─────────────────────────────────────
-  // Format: <text start="x" dur="y">...html-entities...</text>
-  const textParts: string[] = [];
-  const xmlRe = /<text[^>]*>([\s\S]*?)<\/text>/g;
-  let m: RegExpExecArray | null;
-  while ((m = xmlRe.exec(xmlText)) !== null) {
-    const raw = m[1]
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/&apos;/g, "'")
-      .replace(/<[^>]+>/g, '')  // strip any inner tags
-      .trim();
-    if (raw) textParts.push(raw);
+  // Join caption segments into continuous text
+  const rawText = segments
+    .map((s) =>
+      s.text
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;|&apos;/g, "'")
+        .replace(/<[^>]+>/g, '')
+        .trim()
+    )
+    .filter(Boolean)
+    .join(' ');
+
+  if (!rawText.trim()) {
+    throw new Error('The transcript was empty after parsing. The video may not have readable subtitles.');
   }
 
-  if (textParts.length === 0) {
-    throw new Error(
-      'The caption file was empty or could not be parsed. The video may not have readable subtitles.'
-    );
-  }
-
-  const rawText = textParts.join(' ');
   const cleanedText = cleanText(rawText);
   const structuredSections = structureText(cleanedText);
 

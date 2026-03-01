@@ -107,6 +107,11 @@ export const uploadApi = {
     const { data } = await api.post<ApiResponse<UploadResult>>('/upload/youtube', { youtubeUrl });
     return unwrap(data);
   },
+
+  uploadWebsite: async (websiteUrl: string): Promise<UploadResult> => {
+    const { data } = await api.post<ApiResponse<UploadResult>>('/upload/website', { websiteUrl });
+    return unwrap(data);
+  },
 };
 
 // ─── Documents ────────────────────────────────────────────────────────────────

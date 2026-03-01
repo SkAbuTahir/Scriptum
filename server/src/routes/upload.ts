@@ -6,6 +6,8 @@ import {
   uploadFile,
   uploadYouTube,
   uploadYouTubeValidation,
+  uploadWebsite,
+  uploadWebsiteValidation,
 } from '../controllers/uploadController';
 
 const router = Router();
@@ -19,5 +21,8 @@ router.post('/file', upload.single('file'), uploadFile);
 
 // POST /api/upload/youtube
 router.post('/youtube', uploadYouTubeValidation, uploadYouTube);
+
+// POST /api/upload/website
+router.post('/website', uploadWebsiteValidation, uploadWebsite);
 
 export default router;

@@ -61,8 +61,9 @@ export interface IDocument extends Document {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   originalFileName: string;
-  sourceType: 'docx' | 'pdf' | 'txt' | 'youtube';
+  sourceType: 'docx' | 'pdf' | 'txt' | 'youtube' | 'website';
   youtubeUrl?: string;
+  websiteUrl?: string;
   rawText: string;
   cleanedText: string;
   structuredContent: {
@@ -98,6 +99,20 @@ export interface IDocument extends Document {
     suggested: string;
     reason: string;
   }>;
+  // ── Cached analysis fields ──────────────────────────────────────────────
+  contentHash:       string | null;       // SHA-256 slice of cleanedText — detects changes
+  sentenceCount:     number | null;
+  readingTimeMinutes: number | null;
+  fleschGradeLevel:  string | null;
+  avgSentenceLength: number | null;
+  toneAnalysis: {
+    dominant: string;
+    confidence: number;
+    scores: Record<string, number>;
+    description?: string;
+  } | null;
+  aiReasoning:       string | null;
+  humanizationTips:  string[];
   analysisRunAt: Date | null;
   status: 'pending' | 'processing' | 'analyzed' | 'ready';
   createdAt: Date;
@@ -121,10 +136,14 @@ const documentSchema = new Schema<IDocument>(
     },
     sourceType: {
       type: String,
-      enum: ['docx', 'pdf', 'txt', 'youtube'],
+      enum: ['docx', 'pdf', 'txt', 'youtube', 'website'],
       required: true,
     },
     youtubeUrl: {
+      type: String,
+      default: null,
+    },
+    websiteUrl: {
       type: String,
       default: null,
     },
@@ -161,6 +180,47 @@ const documentSchema = new Schema<IDocument>(
     },
     grammarIssues: [grammarIssueSchema],
     suggestions: [suggestionSchema],
+    // ── Analysis cache fields ─────────────────────────────────────────────
+    contentHash: {
+      type: String,
+      default: null,
+    },
+    sentenceCount: {
+      type: Number,
+      default: null,
+    },
+    readingTimeMinutes: {
+      type: Number,
+      default: null,
+    },
+    fleschGradeLevel: {
+      type: String,
+      default: null,
+    },
+    avgSentenceLength: {
+      type: Number,
+      default: null,
+    },
+    toneAnalysis: {
+      type: new Schema(
+        {
+          dominant:    { type: String },
+          confidence:  { type: Number },
+          scores:      { type: Schema.Types.Mixed },
+          description: { type: String },
+        },
+        { _id: false }
+      ),
+      default: null,
+    },
+    aiReasoning: {
+      type: String,
+      default: null,
+    },
+    humanizationTips: {
+      type: [String],
+      default: [],
+    },
     analysisRunAt: {
       type: Date,
       default: null,

@@ -92,7 +92,9 @@ export interface ExtractedContent {
   cleanedText: string;
   structuredSections: DocumentSection[];
   wordCount: number;
-  sourceType: 'docx' | 'pdf' | 'txt' | 'youtube';
+  sourceType: 'docx' | 'pdf' | 'txt' | 'youtube' | 'website';
+  pageTitle?: string;   // populated for website scrapes
+  pageUrl?:   string;   // populated for website scrapes
 }
 
 // ─── Upload ──────────────────────────────────────────────────────────────────

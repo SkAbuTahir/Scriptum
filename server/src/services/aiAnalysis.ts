@@ -3,6 +3,12 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { AISuggestion, AnalysisResult, GrammarIssue, ToneAnalysis } from '../types';
 import { checkGrammar, computeGrammarScore } from './grammarCheck';
 
+// ─── Cost-control constants ────────────────────────────────────────────────────
+// Gemini Flash input window is large, but we cap ← keeps latency + cost low
+const MAX_GEMINI_CHARS   = 4_000;   // ~1 000 tokens; enough for dense analysis
+const MAX_GRAMMAR_CHARS  = 10_000;  // LanguageTool handles bigger chunks cheaply
+const MIN_ANALYSIS_CHARS = 50;      // reject nonsense / empty pings
+
 // ─── Gemini client (lazy init) ────────────────────────────────────────────────
 
 let _gemini: GoogleGenerativeAI | null = null;
@@ -23,7 +29,7 @@ async function analyseAIContent(text: string): Promise<{
   reasoning: string;
   humanizationTips: string[];
 }> {
-  const sample = text.slice(0, 4000);
+  const sample = text.slice(0, MAX_GEMINI_CHARS);
 
   const model = getGemini().getGenerativeModel({
     model: 'gemini-2.5-flash',
@@ -86,7 +92,7 @@ ${sample}
 // ─── Style Suggestions ────────────────────────────────────────────────────────
 
 async function generateSuggestions(text: string): Promise<AISuggestion[]> {
-  const sample = text.slice(0, 4000);
+  const sample = text.slice(0, MAX_GEMINI_CHARS);
 
   const model = getGemini().getGenerativeModel({
     model: 'gemini-2.5-flash',
@@ -201,7 +207,7 @@ async function computeReadabilityScore(text: string): Promise<{
       const res = await axios.get<TGResponse>(
         'https://api.textgears.com/readability',
         {
-          params: { key: tgKey, text: text.slice(0, 5000), language: 'en-US' },
+          params: { key: tgKey, text: text.slice(0, MAX_GEMINI_CHARS), language: 'en-US' },
           timeout: 10_000,
         }
       );
@@ -234,7 +240,7 @@ async function computeReadabilityScore(text: string): Promise<{
 // Twinword will be plugged in later; Gemini handles tone for now.
 
 async function computeToneAnalysis(text: string): Promise<ToneAnalysis> {
-  const sample = text.slice(0, 3000);
+  const sample = text.slice(0, MAX_GEMINI_CHARS);
 
   // Twinword hook — will be activated once RAPIDAPI_KEY is provided
   const rapidKey = process.env.RAPIDAPI_KEY;
@@ -330,13 +336,16 @@ function computePlagiarismScore(): number {
 // ─── Main Analysis Function ───────────────────────────────────────────────────
 
 export async function analyseDocument(text: string): Promise<AnalysisResult> {
-  if (!text || text.trim().length === 0) {
-    throw new Error('Cannot analyse empty text');
+  if (!text || text.trim().length < MIN_ANALYSIS_CHARS) {
+    throw new Error(`Text is too short to analyse (minimum ${MIN_ANALYSIS_CHARS} characters).`);
   }
+
+  // Grammar runs on more text (LanguageTool is cheap); Gemini calls are capped via their own slicing
+  const grammarText = text.slice(0, MAX_GRAMMAR_CHARS);
 
   const [grammarIssues, aiContent, suggestions, readabilityData, toneAnalysis] =
     await Promise.all([
-      checkGrammar(text),
+      checkGrammar(grammarText),
       analyseAIContent(text),
       generateSuggestions(text),
       computeReadabilityScore(text),
