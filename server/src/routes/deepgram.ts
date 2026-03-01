@@ -43,15 +43,20 @@ router.post(
       return;
     }
 
-    if (text.length > 5000) {
-      res.status(400).json({ success: false, error: 'text must be ≤ 5000 characters' } satisfies ApiResponse);
+    // Hard cap: 500 words per request to keep each chunk ≤ ~15s of audio
+    const words   = text.trim().split(/\s+/);
+    const trimmed = words.slice(0, 500).join(' ');
+
+    if (trimmed.length === 0) {
+      res.status(400).json({ success: false, error: 'text is empty after trimming' } satisfies ApiResponse);
       return;
     }
 
     try {
-      const stream = await streamTTS(text.trim(), model ?? 'aura-2-draco-en');
+      const stream = await streamTTS(trimmed, model ?? 'aura-2-draco-en');
       res.setHeader('Content-Type', 'audio/mpeg');
       res.setHeader('Transfer-Encoding', 'chunked');
+      res.setHeader('Cache-Control', 'no-store');
       stream.pipe(res);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'TTS failed';

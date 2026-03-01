@@ -1,51 +1,16 @@
-'use client';
-
-/**
- * useTTSPlayback
- * ──────────────
- * Fetches Deepgram Aura TTS audio from our backend, plays it,
- * and drives word-by-word highlighting via estimated token timings.
- *
- * Strategy:
- *  1. Split the script into ≤1800-char chunks at sentence boundaries.
- *  2. Precompute per-token expected startTime (cumulative estimated durations).
- *  3. Fetch all chunks as Blob URLs (prefetch ahead while current chunk plays).
- *  4. Play chunks sequentially using HTMLAudioElement.
- *  5. On each rAF tick, map audio.currentTime → globalTime → token index
- *     via binary search on the timings array.
- *  6. Call onPointerChange(tokenIndex) → parent applies DOM highlight + scroll.
- */
+﻿'use client';
 
 import { useRef, useCallback, useEffect } from 'react';
 import { Token } from './useScriptTokens';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-/** Deepgram Aura Draco speaking rate (words per minute) */
-const WPM = 155;
-const SEC_PER_WORD = 60 / WPM; // ~0.387 s
-
-/** Extra pause added after sentence-ending punctuation */
-const SENTENCE_PAUSE_SEC = 0.22;
-
-/** Maximum characters per TTS API request */
-const MAX_CHUNK_CHARS = 1800;
-
+const WORDS_PER_CHUNK = 150;
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
 
 export type TTSStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error' | 'done';
 
-interface TokenTiming {
-  tokenIndex: number;
-  /** Seconds from the very start of the full script */
-  startTime: number;
-}
-
 export interface UseTTSPlaybackOptions {
-  tokens: Token[];
-  script: string;
+  tokens:          Token[];
+  script:          string;
   onPointerChange: (index: number) => void;
   onStatusChange:  (status: TTSStatus) => void;
   onError:         (msg: string) => void;
@@ -58,263 +23,166 @@ export interface UseTTSPlaybackReturn {
   stop:   () => void;
 }
 
-// ─── Timing helpers ───────────────────────────────────────────────────────────
-
-function estimateTokenDuration(token: Token): number {
-  // Longer words take proportionally longer
-  const chars   = Math.max(1, token.normalized.length);
-  const wordDur = SEC_PER_WORD * Math.max(0.55, Math.min(2.2, chars / 5));
-  // Add silence after sentence-ending punctuation
-  const pause   = /[.!?;:]+$/.test(token.original) ? SENTENCE_PAUSE_SEC : 0;
-  return wordDur + pause;
+function chunkTokens(tokens: Token[], size: number): Token[][] {
+  const out: Token[][] = [];
+  for (let i = 0; i < tokens.length; i += size) out.push(tokens.slice(i, i + size));
+  return out.length > 0 ? out : [tokens];
 }
-
-function buildTimings(tokens: Token[]): TokenTiming[] {
-  const timings: TokenTiming[] = [];
-  let t = 0;
-  for (const token of tokens) {
-    timings.push({ tokenIndex: token.index, startTime: t });
-    t += estimateTokenDuration(token);
-  }
-  return timings;
-}
-
-/** Binary search: last timing whose startTime ≤ globalTime */
-function findTokenAt(timings: TokenTiming[], globalTime: number): number {
-  if (timings.length === 0) return 0;
-  let lo = 0, hi = timings.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi + 1) >> 1;
-    if (timings[mid].startTime <= globalTime) lo = mid;
-    else hi = mid - 1;
-  }
-  return timings[lo].tokenIndex;
-}
-
-// ─── Script chunker ───────────────────────────────────────────────────────────
-
-function chunkScript(script: string): string[] {
-  // Split on sentence boundaries; accumulate into chunks ≤ MAX_CHUNK_CHARS
-  const sentences = script.match(/[^.!?\n]+[.!?\n]*/g) ?? [script];
-  const chunks: string[] = [];
-  let current = '';
-
-  for (const sentence of sentences) {
-    if (current.length + sentence.length > MAX_CHUNK_CHARS && current.length > 0) {
-      chunks.push(current.trim());
-      current = sentence;
-    } else {
-      current += sentence;
-    }
-  }
-  if (current.trim()) chunks.push(current.trim());
-  return chunks.length > 0 ? chunks : [script];
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useTTSPlayback({
   tokens,
-  script,
+  script: _script,
   onPointerChange,
   onStatusChange,
   onError,
 }: UseTTSPlaybackOptions): UseTTSPlaybackReturn {
 
-  const audioRef           = useRef<HTMLAudioElement | null>(null);
-  const timingsRef         = useRef<TokenTiming[]>([]);
-  const chunkStartTimesRef = useRef<number[]>([]);   // global start time of each audio chunk
-  const blobUrlsRef        = useRef<(string | null)[]>([]);
-  const currentChunkRef    = useRef<number>(0);
-  const isActiveRef        = useRef<boolean>(false);
-  const rafRef             = useRef<number>(0);
-  const statusRef          = useRef<TTSStatus>('idle');
+  const audioRef    = useRef<HTMLAudioElement | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortRef    = useRef<AbortController | null>(null);
+  const isActiveRef = useRef(false);
+  const statusRef   = useRef<TTSStatus>('idle');
+
+  // Store latest callbacks in refs so ALL hook functions stay stable forever.
+  // Without this, inline callback props change identity each render, causing
+  // useCallback to rebuild stop/start, the engine's useEffect cleanup fires
+  // the old ttsStop mid-playback, which aborts the AbortController => status 0.
+  const onPointerRef = useRef(onPointerChange);
+  const onStatusRef  = useRef(onStatusChange);
+  const onErrorRef   = useRef(onError);
+  const tokensRef    = useRef(tokens);
+
+  useEffect(() => { onPointerRef.current = onPointerChange; }, [onPointerChange]);
+  useEffect(() => { onStatusRef.current  = onStatusChange;  }, [onStatusChange]);
+  useEffect(() => { onErrorRef.current   = onError;         }, [onError]);
+  useEffect(() => { tokensRef.current    = tokens;          }, [tokens]);
+
+  // All helpers below have empty or minimal deps — they never rebuild.
 
   const setStatus = useCallback((s: TTSStatus) => {
     statusRef.current = s;
-    onStatusChange(s);
-  }, [onStatusChange]);
-
-  // ── Cleanup ───────────────────────────────────────────────────────────────
-
-  const cleanup = useCallback(() => {
-    isActiveRef.current = false;
-    cancelAnimationFrame(rafRef.current);
-
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.onended  = null;
-      audioRef.current.onerror  = null;
-      audioRef.current.src      = '';
-      audioRef.current          = null;
-    }
-
-    blobUrlsRef.current.forEach((url) => { if (url) URL.revokeObjectURL(url); });
-    blobUrlsRef.current = [];
+    onStatusRef.current(s);
   }, []);
 
-  // ── Fetch one chunk → blob URL ────────────────────────────────────────────
+  const clearTimers = useCallback(() => {
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    if (audioRef.current)    { audioRef.current.pause(); audioRef.current.src = ''; audioRef.current = null; }
+    if (abortRef.current)    { abortRef.current.abort(); abortRef.current = null; }
+  }, []);
 
-  const fetchChunk = useCallback(async (text: string): Promise<string> => {
-    const token = typeof window !== 'undefined'
-      ? localStorage.getItem('scriptum_token')
-      : null;
-
-    const res = await fetch(`${API_BASE}/api/deepgram/tts`, {
+  const fetchAudio = useCallback(async (text: string, signal: AbortSignal): Promise<string> => {
+    const jwt = typeof window !== 'undefined' ? localStorage.getItem('scriptum_token') : null;
+    const res = await fetch(API_BASE + '/api/deepgram/tts', {
       method:  'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization:  `Bearer ${token ?? ''}`,
-      },
-      body: JSON.stringify({ text, model: 'aura-2-draco-en' }),
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (jwt ?? '') },
+      body:    JSON.stringify({ text }),
+      signal,
     });
-
     if (!res.ok) {
-      const msg = await res.text().catch(() => `HTTP ${res.status}`);
-      throw new Error(`TTS error ${res.status}: ${msg}`);
+      const msg = await res.text().catch(() => 'HTTP ' + res.status);
+      throw new Error('TTS ' + res.status + ': ' + msg);
     }
-
-    const buffer = await res.arrayBuffer();
-    const blob   = new Blob([buffer], { type: 'audio/mpeg' });
+    const buf  = await res.arrayBuffer();
+    const blob = new Blob([buf], { type: 'audio/mpeg' });
+    if (blob.size < 100) throw new Error('Empty audio response from Deepgram');
     return URL.createObjectURL(blob);
   }, []);
 
-  // ── rAF ticker: maps currentTime → token pointer ──────────────────────────
+  const playBlob = useCallback(
+    (url: string, startIdx: number, len: number): Promise<void> =>
+      new Promise((resolve, reject) => {
+        if (!isActiveRef.current) { resolve(); return; }
 
-  const startTicker = useCallback((audio: HTMLAudioElement, chunkIndex: number) => {
-    cancelAnimationFrame(rafRef.current);
+        const audio = new Audio(url);
+        audioRef.current = audio;
 
-    const tick = () => {
-      if (!isActiveRef.current) return;
-      if (!audio.paused && !audio.ended) {
-        const globalTime = chunkStartTimesRef.current[chunkIndex] + audio.currentTime;
-        onPointerChange(findTokenAt(timingsRef.current, globalTime));
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    };
+        audio.oncanplaythrough = () => {
+          if (!isActiveRef.current) { resolve(); return; }
 
-    rafRef.current = requestAnimationFrame(tick);
-  }, [onPointerChange]);
+          const dur       = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : len * 0.38;
+          const msPerWord = (dur * 1000) / Math.max(len, 1);
 
-  // ── Play a single chunk ───────────────────────────────────────────────────
+          console.log('[TTS] chunk start=' + startIdx + ' words=' + len + ' dur=' + dur.toFixed(1) + 's ms/word=' + msPerWord.toFixed(0));
 
-  const playChunk = useCallback((chunkIndex: number, onDone: () => void): void => {
-    const url = blobUrlsRef.current[chunkIndex];
-    if (!url || !isActiveRef.current) return;
+          let localIdx = 0;
+          onPointerRef.current(startIdx);
 
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    currentChunkRef.current = chunkIndex;
+          intervalRef.current = setInterval(() => {
+            if (!isActiveRef.current) { clearInterval(intervalRef.current!); return; }
+            if (localIdx < len - 1) {
+              localIdx++;
+              onPointerRef.current(startIdx + localIdx);
+            } else {
+              clearInterval(intervalRef.current!);
+              intervalRef.current = null;
+            }
+          }, msPerWord);
 
-    startTicker(audio, chunkIndex);
-
-    audio.onended = () => {
-      cancelAnimationFrame(rafRef.current);
-      onDone();
-    };
-
-    audio.onerror = () => {
-      cancelAnimationFrame(rafRef.current);
-      onError(`Audio playback error on chunk ${chunkIndex}`);
-      setStatus('error');
-    };
-
-    audio.play().catch((e: Error) => {
-      onError(`Playback failed: ${e.message}`);
-      setStatus('error');
-    });
-  }, [onError, setStatus, startTicker]);
-
-  // ── Main start ─────────────────────────────────────────────────────────────
-
-  const start = useCallback(async (): Promise<void> => {
-    cleanup();
-    setStatus('loading');
-    isActiveRef.current = true;
-
-    try {
-      // 1. Build per-token timings
-      timingsRef.current = buildTimings(tokens);
-
-      // 2. Chunk the script
-      const chunks = chunkScript(script);
-      blobUrlsRef.current = new Array(chunks.length).fill(null);
-
-      // 3. Compute global start time for each chunk using proportional token lookup
-      const chunkStartTimes: number[] = [0];
-      let charOffset = 0;
-      for (let i = 0; i < chunks.length - 1; i++) {
-        charOffset += chunks[i].length;
-        const proportion     = charOffset / Math.max(1, script.length);
-        const approxIndex    = Math.floor(proportion * tokens.length);
-        const t              = timingsRef.current[Math.min(approxIndex, timingsRef.current.length - 1)]?.startTime ?? 0;
-        chunkStartTimes.push(t);
-      }
-      chunkStartTimesRef.current = chunkStartTimes;
-
-      // 4. Fetch first chunk immediately, then prefetch the rest in background
-      const firstUrl = await fetchChunk(chunks[0]);
-      if (!isActiveRef.current) return;
-      blobUrlsRef.current[0] = firstUrl;
-
-      // Kick off background prefetch for remaining chunks
-      (async () => {
-        for (let i = 1; i < chunks.length; i++) {
-          if (!isActiveRef.current) break;
-          try {
-            const url = await fetchChunk(chunks[i]);
-            blobUrlsRef.current[i] = url;
-          } catch {
-            // non-fatal: chunk will be retried in playNext via waitForBlob
-          }
-        }
-      })();
-
-      setStatus('playing');
-
-      // 5. Play chunks sequentially
-      let chunkIndex = 0;
-
-      const playNext = () => {
-        if (!isActiveRef.current) return;
-
-        if (chunkIndex >= chunks.length) {
-          setStatus('done');
-          return;
-        }
-
-        const tryPlay = () => {
-          if (!isActiveRef.current) return;
-          if (blobUrlsRef.current[chunkIndex]) {
-            playChunk(chunkIndex, () => {
-              chunkIndex++;
-              playNext();
-            });
-          } else {
-            // Blob not ready yet; retry in 150 ms
-            setTimeout(tryPlay, 150);
-          }
+          audio.play().catch(reject);
         };
 
-        tryPlay();
-      };
+        audio.onended = () => {
+          if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+          URL.revokeObjectURL(url);
+          resolve();
+        };
 
-      playNext();
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('Audio error at token ' + startIdx));
+        };
+      }),
+    [],
+  );
 
+  const start = useCallback(async (): Promise<void> => {
+    isActiveRef.current = false;
+    clearTimers();
+    isActiveRef.current = true;
+
+    const toks = tokensRef.current;
+    if (toks.length === 0) return;
+
+    setStatus('loading');
+
+    const chunks = chunkTokens(toks, WORDS_PER_CHUNK);
+    const ctrl   = new AbortController();
+    abortRef.current = ctrl;
+
+    onPointerRef.current(0);
+
+    try {
+      for (let i = 0; i < chunks.length; i++) {
+        if (!isActiveRef.current) break;
+        const chunk     = chunks[i];
+        const chunkStart = i * WORDS_PER_CHUNK;
+        const text       = chunk.map((t) => t.original).join(' ');
+
+        const url = await fetchAudio(text, ctrl.signal);
+        if (!isActiveRef.current) { URL.revokeObjectURL(url); break; }
+
+        if (i === 0) setStatus('playing');
+        await playBlob(url, chunkStart, chunk.length);
+      }
+      if (isActiveRef.current) {
+        onPointerRef.current(tokensRef.current.length - 1);
+        setStatus('done');
+      }
     } catch (err) {
+      if ((err as Error).name === 'AbortError') return;
       const msg = err instanceof Error ? err.message : 'TTS failed';
-      onError(msg);
+      console.error('[TTS]', msg);
+      onErrorRef.current(msg);
       setStatus('error');
-      cleanup();
+      clearTimers();
     }
-  }, [cleanup, fetchChunk, onError, playChunk, script, setStatus, tokens]);
-
-  // ── Pause / Resume / Stop ────────────────────────────────────────────────
+  }, [clearTimers, fetchAudio, playBlob, setStatus]);
 
   const pause = useCallback((): void => {
-    if (audioRef.current && !audioRef.current.paused) {
-      audioRef.current.pause();
-      cancelAnimationFrame(rafRef.current);
+    const audio = audioRef.current;
+    if (audio && !audio.paused) {
+      audio.pause();
+      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
       setStatus('paused');
     }
   }, [setStatus]);
@@ -322,20 +190,18 @@ export function useTTSPlayback({
   const resume = useCallback((): void => {
     const audio = audioRef.current;
     if (audio && audio.paused && isActiveRef.current) {
-      audio.play().catch(() => {});
-      startTicker(audio, currentChunkRef.current);
+      audio.play().catch((e: Error) => onErrorRef.current(e.message));
       setStatus('playing');
     }
-  }, [setStatus, startTicker]);
+  }, [setStatus]);
 
   const stop = useCallback((): void => {
+    isActiveRef.current = false;
+    clearTimers();
     setStatus('idle');
-    cleanup();
-  }, [cleanup, setStatus]);
+  }, [clearTimers, setStatus]);
 
-  // ── Unmount cleanup ───────────────────────────────────────────────────────
-
-  useEffect(() => () => cleanup(), [cleanup]);
+  useEffect(() => () => { isActiveRef.current = false; clearTimers(); }, [clearTimers]);
 
   return { start, pause, resume, stop };
 }
