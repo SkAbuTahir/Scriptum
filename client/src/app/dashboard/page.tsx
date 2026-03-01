@@ -17,9 +17,10 @@ import {
   Pencil, CheckCircle2, Clock,
   AlertTriangle, TrendingUp, Sparkles,
   Search, SlidersHorizontal, ArrowUpRight,
-  Zap,
+  Zap, Globe,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { Footer } from '@/components/ui/footer';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -28,43 +29,44 @@ const sourceIcon = (type: string) => {
     case 'docx':    return FileType;
     case 'pdf':     return File;
     case 'youtube': return Youtube;
+    case 'website': return Globe;
     default:        return FileText;
   }
 };
 
 function scoreColor(variant: 'grammar' | 'readability' | 'ai', value: number) {
   if (variant === 'ai') {
-    if (value >= 70) return 'text-red-400';
-    if (value >= 40) return 'text-amber-400';
-    return 'text-emerald-400';
+    if (value >= 70) return 'text-red-500 dark:text-red-400';
+    if (value >= 40) return 'text-amber-500 dark:text-amber-400';
+    return 'text-emerald-600 dark:text-emerald-400';
   }
-  if (value >= 80) return 'text-emerald-400';
-  if (value >= 55) return 'text-amber-400';
-  return 'text-red-400';
+  if (value >= 80) return 'text-emerald-600 dark:text-emerald-400';
+  if (value >= 55) return 'text-amber-500 dark:text-amber-400';
+  return 'text-red-500 dark:text-red-400';
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function RowSkeleton() {
   return (
-    <div className="flex items-center gap-4 px-5 py-4 border-b border-white/[0.04]">
-      <div className="h-9 w-9 rounded-xl bg-white/[0.04] animate-pulse flex-shrink-0" />
+    <div className="flex items-center gap-4 px-5 py-4 border-b border-slate-100 dark:border-white/[0.04]">
+      <div className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-white/[0.04] animate-pulse flex-shrink-0" />
       <div className="flex-1 space-y-2 min-w-0">
-        <div className="h-3 w-48 rounded bg-white/[0.06] animate-pulse" />
-        <div className="h-2.5 w-28 rounded bg-white/[0.04] animate-pulse" />
+        <div className="h-3 w-48 rounded bg-slate-200 dark:bg-white/[0.06] animate-pulse" />
+        <div className="h-2.5 w-28 rounded bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
       </div>
       <div className="hidden sm:flex items-center gap-4">
         {[48, 40, 44].map((w) => (
           <div key={w} className="flex flex-col items-center gap-1">
-            <div className={`h-4 w-${w === 48 ? '8' : w === 40 ? '7' : '7'} rounded bg-white/[0.04] animate-pulse`} />
-            <div className="h-2 w-6 rounded bg-white/[0.03] animate-pulse" />
+            <div className="h-4 w-8 rounded bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
+            <div className="h-2 w-6 rounded bg-slate-100 dark:bg-white/[0.03] animate-pulse" />
           </div>
         ))}
       </div>
       <div className="flex items-center gap-1 opacity-0">
-        <div className="h-7 w-7 rounded-lg bg-white/[0.04]" />
-        <div className="h-7 w-7 rounded-lg bg-white/[0.04]" />
-        <div className="h-7 w-7 rounded-lg bg-white/[0.04]" />
+        <div className="h-7 w-7 rounded-lg bg-slate-100 dark:bg-white/[0.04]" />
+        <div className="h-7 w-7 rounded-lg bg-slate-100 dark:bg-white/[0.04]" />
+        <div className="h-7 w-7 rounded-lg bg-slate-100 dark:bg-white/[0.04]" />
       </div>
     </div>
   );
@@ -72,10 +74,10 @@ function RowSkeleton() {
 
 function StatSkeleton() {
   return (
-    <div className="p-5 bg-[#0d0d18] flex flex-col gap-1">
-      <div className="h-2.5 w-16 rounded bg-white/[0.06] animate-pulse mb-1" />
-      <div className="h-7 w-12 rounded bg-white/[0.06] animate-pulse" />
-      <div className="h-2.5 w-20 rounded bg-white/[0.04] animate-pulse" />
+    <div className="p-5 bg-white dark:bg-[#0d0d18] flex flex-col gap-1">
+      <div className="h-2.5 w-16 rounded bg-slate-200 dark:bg-white/[0.06] animate-pulse mb-1" />
+      <div className="h-7 w-12 rounded bg-slate-200 dark:bg-white/[0.06] animate-pulse" />
+      <div className="h-2.5 w-20 rounded bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
     </div>
   );
 }
@@ -90,7 +92,7 @@ function ScoreToken({ label, value, variant }: {
   return (
     <div className="flex flex-col items-center min-w-[44px]">
       <span className={`text-sm font-bold tabular-nums ${scoreColor(variant, value)}`}>{value}</span>
-      <span className="text-[10px] text-white/25 mt-0.5 whitespace-nowrap">{label}</span>
+      <span className="text-[10px] text-slate-400 dark:text-white/25 mt-0.5 whitespace-nowrap">{label}</span>
     </div>
   );
 }
@@ -155,28 +157,32 @@ export default function DashboardPage() {
       value:  String(total),
       sub:    `${analyzedDocs.length} analysed`,
       icon:   FileText,
-      accent: 'text-indigo-400',
+      accent: 'text-indigo-500 dark:text-indigo-400',
     },
     {
       label:  'Avg Grammar',
       value:  avgGrammar != null ? String(avgGrammar) : '—',
       sub:    avgGrammar != null ? grammarScoreLabel(avgGrammar) : 'Run analysis',
       icon:   TrendingUp,
-      accent: avgGrammar == null ? 'text-white/20' : avgGrammar >= 80 ? 'text-emerald-400' : avgGrammar >= 55 ? 'text-amber-400' : 'text-red-400',
+      accent: avgGrammar == null
+        ? 'text-slate-300 dark:text-white/20'
+        : avgGrammar >= 80 ? 'text-emerald-500 dark:text-emerald-400'
+        : avgGrammar >= 55 ? 'text-amber-500 dark:text-amber-400'
+        : 'text-red-500 dark:text-red-400',
     },
     {
       label:  'Grammar Issues',
       value:  analyzedDocs.length ? String(totalIssues) : '—',
       sub:    analyzedDocs.length ? `across ${docsWithGram.length} doc${docsWithGram.length !== 1 ? 's' : ''}` : 'No analysis yet',
       icon:   AlertTriangle,
-      accent: 'text-amber-400',
+      accent: 'text-amber-500 dark:text-amber-400',
     },
     {
       label:  'Total Words',
       value:  formatWordCount(totalWords),
       sub:    `${documents.length} file${documents.length !== 1 ? 's' : ''}`,
       icon:   BookOpen,
-      accent: 'text-violet-400',
+      accent: 'text-violet-500 dark:text-violet-400',
     },
   ];
 
@@ -189,26 +195,26 @@ export default function DashboardPage() {
     });
 
   return (
-    <div className="min-h-screen bg-[#08080f]">
-      {/* Ambient glow */}
+    <div className="min-h-screen bg-slate-50 dark:bg-[#08080f]">
+      {/* Ambient glow — dark mode only */}
       <div
         aria-hidden
-        className="pointer-events-none fixed inset-x-0 top-0 h-[480px]"
+        className="pointer-events-none fixed inset-x-0 top-0 h-[480px] hidden dark:block"
         style={{ background: 'radial-gradient(ellipse 70% 40% at 50% -10%, rgba(99,102,241,0.09) 0%, transparent 70%)' }}
       />
 
-      <main className="relative mx-auto max-w-5xl px-4 pt-12 pb-32 sm:px-6">
+      <main className="relative mx-auto max-w-5xl px-4 pt-12 pb-16 sm:px-6">
 
         {/* ── Header ──────────────────────────────────────────────────── */}
         <div className="mb-10 flex items-end justify-between gap-4">
           <div>
-            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-indigo-500/20 bg-indigo-500/8 px-3 py-1 text-xs font-medium text-indigo-400">
+            <div className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-medium text-indigo-600 dark:border-indigo-500/20 dark:bg-indigo-500/8 dark:text-indigo-400">
               <Sparkles className="h-3 w-3" /> Workspace
             </div>
-            <h1 className="text-[28px] font-bold tracking-tight text-white leading-none">
+            <h1 className="text-[28px] font-bold tracking-tight text-slate-900 dark:text-white leading-none">
               {isLoading ? 'Loading…' : `Hello, ${firstName}`}
             </h1>
-            <p className="mt-1.5 text-sm text-white/35">
+            <p className="mt-1.5 text-sm text-slate-500 dark:text-white/35">
               {isLoading
                 ? 'Fetching your documents'
                 : total === 0
@@ -227,46 +233,46 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Stats row ───────────────────────────────────────────────── */}
-        <div className="mb-8 grid grid-cols-2 gap-px sm:grid-cols-4 rounded-2xl overflow-hidden border border-white/[0.06] bg-white/[0.03]">
+        <div className="mb-8 grid grid-cols-2 gap-px sm:grid-cols-4 rounded-2xl overflow-hidden border border-slate-200 dark:border-white/[0.06] bg-slate-200 dark:bg-white/[0.03]">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
             : stats.map((s, i) => (
                 <div
                   key={s.label}
                   className={cn(
-                    'p-5 bg-[#0d0d18] flex flex-col',
-                    i < 3 && 'sm:border-r sm:border-b-0 border-white/[0.05]',
-                    i < 2 && 'border-b border-white/[0.05]',
+                    'p-5 bg-white dark:bg-[#0d0d18] flex flex-col',
+                    i < 3 && 'sm:border-r border-slate-200 dark:border-white/[0.05] sm:border-b-0',
+                    i < 2 && 'border-b border-slate-200 dark:border-white/[0.05]',
                   )}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-[10px] font-semibold uppercase tracking-widest text-white/25">{s.label}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 dark:text-white/25">{s.label}</p>
                     <s.icon className={cn('h-3.5 w-3.5', s.accent)} />
                   </div>
-                  <p className="text-2xl font-bold text-white tracking-tight">{s.value}</p>
-                  <p className="mt-1 text-[11px] text-white/25">{s.sub}</p>
+                  <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{s.value}</p>
+                  <p className="mt-1 text-[11px] text-slate-400 dark:text-white/25">{s.sub}</p>
                 </div>
               ))}
         </div>
 
         {/* ── AI Usage Meter ──────────────────────────────────────────── */}
         {usage && (
-          <div className="mb-8 flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-[#0d0d18] px-5 py-4">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 flex-shrink-0">
-              <Zap className="h-4 w-4 text-indigo-400" />
+          <div className="mb-8 flex items-center gap-3 rounded-2xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-[#0d0d18] px-5 py-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex-shrink-0">
+              <Zap className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1.5">
-                <p className="text-sm font-semibold text-white/80">
-                  AI analyses used: <span className="text-indigo-400">{usage.geminiCallsThisHour}</span> / {usage.maxCallsPerHour} this hour
+                <p className="text-sm font-semibold text-slate-700 dark:text-white/80">
+                  AI analyses used: <span className="text-indigo-600 dark:text-indigo-400">{usage.geminiCallsThisHour}</span> / {usage.maxCallsPerHour} this hour
                 </p>
                 {usage.remaining === 0 && (
-                  <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-400 ring-1 ring-red-500/20">
+                  <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 ring-1 ring-red-200 dark:bg-red-500/15 dark:text-red-400 dark:ring-red-500/20">
                     Limit reached
                   </span>
                 )}
               </div>
-              <div className="h-1.5 w-full max-w-xs rounded-full bg-white/[0.06] overflow-hidden">
+              <div className="h-1.5 w-full max-w-xs rounded-full bg-slate-100 dark:bg-white/[0.06] overflow-hidden">
                 <div
                   className={cn(
                     'h-full rounded-full transition-all duration-700',
@@ -275,7 +281,7 @@ export default function DashboardPage() {
                   style={{ width: `${Math.round((usage.geminiCallsThisHour / usage.maxCallsPerHour) * 100)}%` }}
                 />
               </div>
-              <p className="mt-1 text-[11px] text-white/20">
+              <p className="mt-1 text-[11px] text-slate-400 dark:text-white/20">
                 {usage.remaining > 0
                   ? `${usage.remaining} remaining · resets ${new Date(usage.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                   : `Resets at ${new Date(usage.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
@@ -286,21 +292,21 @@ export default function DashboardPage() {
         )}
 
         {/* ── Document list ────────────────────────────────────────────── */}
-        <div className="rounded-2xl border border-white/[0.06] bg-[#0d0d18] overflow-hidden">
+        <div className="rounded-2xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-[#0d0d18] overflow-hidden">
 
           {/* Toolbar */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.05]">
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-white/[0.05]">
             <div className="relative flex-1 max-w-xs">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/20 pointer-events-none" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-300 dark:text-white/20 pointer-events-none" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search documents…"
-                className="w-full rounded-lg bg-white/[0.03] pl-8 pr-3 py-1.5 text-xs text-white/80 placeholder:text-white/20 border border-white/[0.05] focus:outline-none focus:border-indigo-500/40 focus:bg-white/[0.05] transition-colors"
+                className="w-full rounded-lg bg-slate-50 dark:bg-white/[0.03] pl-8 pr-3 py-1.5 text-xs text-slate-700 dark:text-white/80 placeholder:text-slate-300 dark:placeholder:text-white/20 border border-slate-200 dark:border-white/[0.05] focus:outline-none focus:border-indigo-400 dark:focus:border-indigo-500/40 focus:bg-white dark:focus:bg-white/[0.05] transition-colors"
               />
             </div>
             <div className="ml-auto flex items-center gap-1">
-              <SlidersHorizontal className="h-3.5 w-3.5 text-white/20 mr-1 flex-shrink-0" />
+              <SlidersHorizontal className="h-3.5 w-3.5 text-slate-300 dark:text-white/20 mr-1 flex-shrink-0" />
               {(['recent', 'name', 'score'] as const).map((val) => (
                 <button
                   key={val}
@@ -308,8 +314,8 @@ export default function DashboardPage() {
                   className={cn(
                     'rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-all',
                     sortBy === val
-                      ? 'bg-indigo-600/80 text-white'
-                      : 'text-white/25 hover:text-white/60 hover:bg-white/[0.04]',
+                      ? 'bg-indigo-600 text-white dark:bg-indigo-600/80'
+                      : 'text-slate-400 dark:text-white/25 hover:text-slate-700 dark:hover:text-white/60 hover:bg-slate-100 dark:hover:bg-white/[0.04]',
                   )}
                 >
                   {val}
@@ -320,7 +326,7 @@ export default function DashboardPage() {
 
           {/* Column headers */}
           {!isLoading && sortedFiltered.length > 0 && (
-            <div className="hidden sm:flex items-center px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-white/15 border-b border-white/[0.04]">
+            <div className="hidden sm:flex items-center px-5 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-300 dark:text-white/15 border-b border-slate-100 dark:border-white/[0.04]">
               <span className="flex-1">Document</span>
               <span className="mr-[90px]">Scores</span>
             </div>
@@ -331,13 +337,13 @@ export default function DashboardPage() {
             Array.from({ length: 5 }).map((_, i) => <RowSkeleton key={i} />)
           ) : sortedFiltered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-500/10">
-                <Upload className="h-7 w-7 text-indigo-400" />
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-500/10">
+                <Upload className="h-7 w-7 text-indigo-500 dark:text-indigo-400" />
               </div>
-              <h3 className="mb-1.5 text-base font-semibold text-white">
+              <h3 className="mb-1.5 text-base font-semibold text-slate-900 dark:text-white">
                 {query ? 'No results' : 'No documents yet'}
               </h3>
-              <p className="mb-6 max-w-xs text-sm text-white/30 leading-relaxed">
+              <p className="mb-6 max-w-xs text-sm text-slate-400 dark:text-white/30 leading-relaxed">
                 {query
                   ? `No documents match "${query}".`
                   : 'Upload a Word doc, PDF, plain text, or a YouTube link to begin AI analysis.'}
@@ -365,8 +371,8 @@ export default function DashboardPage() {
                   <li
                     key={doc._id}
                     className={cn(
-                      'group relative flex items-center gap-4 px-5 py-4 cursor-pointer transition-colors hover:bg-white/[0.02]',
-                      idx < sortedFiltered.length - 1 && 'border-b border-white/[0.04]',
+                      'group relative flex items-center gap-4 px-5 py-4 cursor-pointer transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.02]',
+                      idx < sortedFiltered.length - 1 && 'border-b border-slate-100 dark:border-white/[0.04]',
                     )}
                     onClick={() => router.push(`/editor/${doc._id}`)}
                     role="button"
@@ -377,16 +383,16 @@ export default function DashboardPage() {
                     <div className="absolute inset-y-0 left-0 w-[2px] bg-indigo-500 scale-y-0 group-hover:scale-y-100 transition-transform origin-center rounded-r-full" />
 
                     {/* Icon */}
-                    <div className="flex-shrink-0 h-9 w-9 rounded-xl bg-white/[0.04] flex items-center justify-center group-hover:bg-indigo-500/10 transition-colors">
-                      <Icon className="h-4 w-4 text-white/25 group-hover:text-indigo-400 transition-colors" />
+                    <div className="flex-shrink-0 h-9 w-9 rounded-xl bg-slate-100 dark:bg-white/[0.04] flex items-center justify-center group-hover:bg-indigo-50 dark:group-hover:bg-indigo-500/10 transition-colors">
+                      <Icon className="h-4 w-4 text-slate-400 dark:text-white/25 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors" />
                     </div>
 
                     {/* Name + meta */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white/80 group-hover:text-white transition-colors truncate">
+                      <p className="text-sm font-semibold text-slate-700 dark:text-white/80 group-hover:text-slate-900 dark:group-hover:text-white transition-colors truncate">
                         {doc.originalFileName}
                       </p>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-[11px] text-white/22">
+                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0 text-[11px] text-slate-400 dark:text-white/22">
                         <span className="capitalize">{sourceTypeLabel(doc.sourceType)}</span>
                         <span>·</span>
                         <span>{formatWordCount(doc.wordCount)}</span>
@@ -395,7 +401,7 @@ export default function DashboardPage() {
                         {isAnalyzed && (
                           <>
                             <span className="hidden sm:inline">·</span>
-                            <span className="hidden sm:inline-flex items-center gap-1 text-emerald-500/50">
+                            <span className="hidden sm:inline-flex items-center gap-1 text-emerald-500 dark:text-emerald-500/50">
                               <CheckCircle2 className="h-2.5 w-2.5" />
                               analysed {formatRelativeTime(doc.analysisRunAt!)}
                             </span>
@@ -404,7 +410,7 @@ export default function DashboardPage() {
                         {!isAnalyzed && (
                           <>
                             <span>·</span>
-                            <span className="inline-flex items-center gap-1 text-amber-500/50">
+                            <span className="inline-flex items-center gap-1 text-amber-500 dark:text-amber-500/50">
                               <Clock className="h-2.5 w-2.5" /> not analysed
                             </span>
                           </>
@@ -420,17 +426,17 @@ export default function DashboardPage() {
                         {hasAI      && <ScoreToken label="AI %"    value={doc.aiScore!}           variant="ai"          />}
                         {issueCount > 0 ? (
                           <div className="flex flex-col items-center min-w-[44px]">
-                            <span className="text-sm font-bold tabular-nums text-amber-400">{issueCount}</span>
-                            <span className="text-[10px] text-white/25 mt-0.5">issues</span>
+                            <span className="text-sm font-bold tabular-nums text-amber-500 dark:text-amber-400">{issueCount}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-white/25 mt-0.5">issues</span>
                           </div>
                         ) : (
-                          <CheckCircle2 className="h-4 w-4 text-emerald-500/50 flex-shrink-0" />
+                          <CheckCircle2 className="h-4 w-4 text-emerald-500 dark:text-emerald-500/50 flex-shrink-0" />
                         )}
                       </div>
                     ) : (
                       <button
                         onClick={(e) => { e.stopPropagation(); router.push(`/analysis/${doc._id}`); }}
-                        className="hidden sm:block flex-shrink-0 text-xs font-medium text-indigo-400/60 hover:text-indigo-300 transition-colors"
+                        className="hidden sm:block flex-shrink-0 text-xs font-medium text-indigo-500 dark:text-indigo-400/60 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
                       >
                         Run analysis →
                       </button>
@@ -444,14 +450,14 @@ export default function DashboardPage() {
                       <button
                         onClick={(e) => { e.stopPropagation(); router.push(`/editor/${doc._id}`); }}
                         title="Edit"
-                        className="rounded-lg p-2 text-white/25 hover:text-white hover:bg-white/[0.06] transition-colors"
+                        className="rounded-lg p-2 text-slate-300 dark:text-white/25 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); router.push(`/analysis/${doc._id}`); }}
                         title="Analysis"
-                        className="rounded-lg p-2 text-white/25 hover:text-indigo-400 hover:bg-indigo-500/10 transition-colors"
+                        className="rounded-lg p-2 text-slate-300 dark:text-white/25 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
                       >
                         <ArrowUpRight className="h-3.5 w-3.5" />
                       </button>
@@ -459,7 +465,7 @@ export default function DashboardPage() {
                         onClick={(e) => handleDelete(e, doc._id, doc.originalFileName)}
                         disabled={deletingId === doc._id}
                         title="Delete"
-                        className="rounded-lg p-2 text-white/20 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-30"
+                        className="rounded-lg p-2 text-slate-300 dark:text-white/20 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors disabled:opacity-30"
                       >
                         {deletingId === doc._id
                           ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -474,14 +480,14 @@ export default function DashboardPage() {
 
           {/* Footer */}
           {!isLoading && sortedFiltered.length > 0 && (
-            <div className="px-5 py-3 border-t border-white/[0.04] flex items-center justify-between">
-              <p className="text-[11px] text-white/20">
+            <div className="px-5 py-3 border-t border-slate-100 dark:border-white/[0.04] flex items-center justify-between">
+              <p className="text-[11px] text-slate-400 dark:text-white/20">
                 {sortedFiltered.length} document{sortedFiltered.length !== 1 ? 's' : ''}
-                {query && <> matching <span className="text-white/35">"{query}"</span></>}
+                {query && <> matching <span className="text-slate-600 dark:text-white/35">&ldquo;{query}&rdquo;</span></>}
               </p>
               <Link
                 href="/upload"
-                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-indigo-400/60 hover:text-indigo-300 transition-colors"
+                className="inline-flex items-center gap-1.5 text-[11px] font-medium text-indigo-500 dark:text-indigo-400/60 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
               >
                 <Plus className="h-3 w-3" /> Add document
               </Link>
@@ -490,6 +496,8 @@ export default function DashboardPage() {
         </div>
 
       </main>
+
+      <Footer />
     </div>
   );
 }
