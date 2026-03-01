@@ -57,8 +57,9 @@ export interface Document {
   _id: string;
   userId: string;
   originalFileName: string;
-  sourceType: 'docx' | 'pdf' | 'txt' | 'youtube';
+  sourceType: 'docx' | 'pdf' | 'txt' | 'youtube' | 'website';
   youtubeUrl?: string;
+  websiteUrl?: string;
   rawText: string;
   cleanedText: string;
   structuredContent: StructuredContent;
@@ -162,4 +163,15 @@ export interface TeleprompterSettings {
   fontSize: number;     // px, 16–72
   theme: 'dark' | 'light';
   isPlaying: boolean;
+}
+
+// ─── Usage Metering ──────────────────────────────────────────────────────────
+
+export interface UsageStats {
+  geminiCallsThisHour: number;
+  maxCallsPerHour: number;
+  remaining: number;
+  totalGeminiCalls: number;
+  totalAnalyses: number;
+  resetsAt: string;
 }

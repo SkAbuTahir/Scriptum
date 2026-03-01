@@ -2,8 +2,12 @@ import 'dotenv/config';
 import http from 'http';
 import app from './app';
 import connectDB from './config/db';
+import { validateEnv } from './config/validateEnv';
 import fs from 'fs';
 import path from 'path';
+
+// ─── Validate environment variables before anything else ──────────────────────
+validateEnv();
 
 const PORT = parseInt(process.env.PORT || '5000', 10);
 

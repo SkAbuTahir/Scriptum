@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { param, body, validationResult } from 'express-validator';
 import DocumentModel from '../models/Document';
 import { structureDocument } from '../services/documentStructure';
+import { sanitizeText } from '../utils/sanitize';
 import { AuthenticatedRequest } from '../types';
 
 // ─── Get single document ──────────────────────────────────────────────────────
@@ -107,9 +108,9 @@ export const updateDocument = async (
     };
 
     if (cleanedText) {
-      doc.cleanedText = cleanedText;
+      doc.cleanedText = sanitizeText(cleanedText);
       // Re-structure when text changes
-      const newStructure = structureDocument(cleanedText);
+      const newStructure = structureDocument(doc.cleanedText);
       doc.structuredContent = newStructure;
     }
 

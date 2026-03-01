@@ -3,7 +3,7 @@ import { param, validationResult } from 'express-validator';
 import crypto from 'crypto';
 import DocumentModel from '../models/Document';
 import { analyseDocument } from '../services/aiAnalysis';
-import { checkUserAnalysisLimit } from '../middleware/rateLimiter';
+import { checkAndIncrementUsage } from '../models/Usage';
 import { AuthenticatedRequest } from '../types';
 
 // Cache TTL: return stored results without calling Gemini if the text
@@ -31,14 +31,15 @@ export const analyzeDocument = async (
   const { id } = req.params;
 
   try {
-    // ── 1. Per-user Gemini rate limit ─────────────────────────────────────
-    const { allowed, retryAfterMs } = checkUserAnalysisLimit(req.user!.userId);
+    // ── 1. Per-user Gemini rate limit (MongoDB-backed) ──────────────────────
+    const { allowed, remaining, retryAfterMs } = await checkAndIncrementUsage(req.user!.userId);
     if (!allowed) {
       const mins = Math.ceil(retryAfterMs / 60_000);
       res.status(429).json({
         success: false,
         error: `Gemini analysis limit reached (10/hour per user). Try again in ${mins} min.`,
         retryAfterMs,
+        remaining: 0,
       });
       return;
     }
@@ -129,6 +130,7 @@ export const analyzeDocument = async (
     res.json({
       success: true,
       cached: false,
+      remaining,
       data: {
         documentId:         id,
         aiLikelihoodScore:  updated?.aiScore,

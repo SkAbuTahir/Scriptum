@@ -5,6 +5,7 @@ import { extractContent } from '../services/textExtraction';
 import { extractFromWebsite } from '../services/webScraper';
 import { structureDocument } from '../services/documentStructure';
 import { deleteFile } from '../utils/fileFilter';
+import { sanitizeText } from '../utils/sanitize';
 import { AuthenticatedRequest, ApiResponse, UploadResult } from '../types';
 
 // ─── Upload File ──────────────────────────────────────────────────────────────
@@ -26,6 +27,10 @@ export const uploadFile = async (
       mimeType: file.mimetype,
       originalname: file.originalname,
     });
+
+    // Sanitize extracted text to strip any embedded HTML/scripts
+    extracted.rawText = sanitizeText(extracted.rawText);
+    extracted.cleanedText = sanitizeText(extracted.cleanedText);
 
     const structured = structureDocument(extracted.cleanedText, extracted.structuredSections);
 
@@ -94,11 +99,16 @@ export const uploadYouTube = async (
 
   try {
     const extracted = await extractContent({ youtubeUrl });
+
+    // Sanitize YouTube transcript text
+    extracted.rawText = sanitizeText(extracted.rawText);
+    extracted.cleanedText = sanitizeText(extracted.cleanedText);
+
     const structured = structureDocument(extracted.cleanedText, extracted.structuredSections);
 
     const doc = await DocumentModel.create({
       userId: req.user!.userId,
-      originalFileName: `YouTube: ${youtubeUrl}`,
+      originalFileName: `YouTube: ${sanitizeText(youtubeUrl)}`,
       sourceType: 'youtube',
       youtubeUrl,
       rawText: extracted.rawText,
@@ -163,6 +173,11 @@ export const uploadWebsite = async (
 
   try {
     const extracted   = await extractFromWebsite(websiteUrl);
+
+    // Sanitize scraped content aggressively — web pages may contain XSS payloads
+    extracted.rawText = sanitizeText(extracted.rawText);
+    extracted.cleanedText = sanitizeText(extracted.cleanedText);
+
     const structured  = structureDocument(extracted.cleanedText, extracted.structuredSections);
 
     const doc = await DocumentModel.create({

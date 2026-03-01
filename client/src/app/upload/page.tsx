@@ -21,7 +21,7 @@ const ACCEPTED_TYPES = {
   'application/pdf': ['.pdf'],
   'text/plain': ['.txt'],
 };
-const MAX_SIZE = 25 * 1024 * 1024;
+const MAX_SIZE = 5 * 1024 * 1024;
 
 const FORMAT_PILLS = [
   { icon: FileType,  label: '.docx', color: 'text-blue-500' },

@@ -11,6 +11,7 @@ import {
   UploadResult,
   AnalysisResult,
   AudioSegment,
+  UsageStats,
 } from '@/types';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -191,6 +192,40 @@ export const exportApi = {
       responseType: 'blob',
     });
     return response.data as Blob;
+  },
+
+  pdf: async (
+    documentId: string,
+    options: { title?: string }
+  ): Promise<Blob> => {
+    const response = await api.post('/export/pdf', { documentId, ...options }, {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
+
+  docx: async (
+    documentId: string,
+    options: { title?: string }
+  ): Promise<Blob> => {
+    const response = await api.post('/export/docx', { documentId, ...options }, {
+      responseType: 'blob',
+    });
+    return response.data as Blob;
+  },
+};
+
+// ─── User ─────────────────────────────────────────────────────────────────────
+
+export const userApi = {
+  getUsage: async (): Promise<UsageStats> => {
+    const { data } = await api.get<ApiResponse<UsageStats>>('/user/usage');
+    return unwrap(data);
+  },
+
+  deleteAccount: async (): Promise<{ documentsDeleted: number }> => {
+    const { data } = await api.delete<ApiResponse<{ documentsDeleted: number }>>('/user');
+    return unwrap(data);
   },
 };
 

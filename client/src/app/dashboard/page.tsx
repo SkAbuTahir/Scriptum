@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { documentApi } from '@/lib/api';
+import { useUsage } from '@/hooks/useUsage';
 import { DocumentSummary } from '@/types';
 import {
   formatRelativeTime, formatWordCount, sourceTypeLabel,
@@ -16,6 +17,7 @@ import {
   Pencil, CheckCircle2, Clock,
   AlertTriangle, TrendingUp, Sparkles,
   Search, SlidersHorizontal, ArrowUpRight,
+  Zap,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -98,6 +100,7 @@ function ScoreToken({ label, value, variant }: {
 export default function DashboardPage() {
   const { user }   = useAuth();
   const router     = useRouter();
+  const { usage }  = useUsage();
 
   const [documents, setDocuments]   = useState<DocumentSummary[]>([]);
   const [isLoading, setIsLoading]   = useState(true);
@@ -245,6 +248,42 @@ export default function DashboardPage() {
                 </div>
               ))}
         </div>
+
+        {/* ── AI Usage Meter ──────────────────────────────────────────── */}
+        {usage && (
+          <div className="mb-8 flex items-center gap-3 rounded-2xl border border-white/[0.06] bg-[#0d0d18] px-5 py-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-500/10 flex-shrink-0">
+              <Zap className="h-4 w-4 text-indigo-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1.5">
+                <p className="text-sm font-semibold text-white/80">
+                  AI analyses used: <span className="text-indigo-400">{usage.geminiCallsThisHour}</span> / {usage.maxCallsPerHour} this hour
+                </p>
+                {usage.remaining === 0 && (
+                  <span className="rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-400 ring-1 ring-red-500/20">
+                    Limit reached
+                  </span>
+                )}
+              </div>
+              <div className="h-1.5 w-full max-w-xs rounded-full bg-white/[0.06] overflow-hidden">
+                <div
+                  className={cn(
+                    'h-full rounded-full transition-all duration-700',
+                    usage.remaining === 0 ? 'bg-red-500' : usage.remaining <= 3 ? 'bg-amber-500' : 'bg-indigo-500',
+                  )}
+                  style={{ width: `${Math.round((usage.geminiCallsThisHour / usage.maxCallsPerHour) * 100)}%` }}
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-white/20">
+                {usage.remaining > 0
+                  ? `${usage.remaining} remaining · resets ${new Date(usage.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                  : `Resets at ${new Date(usage.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                {usage.totalAnalyses > 0 && ` · ${usage.totalAnalyses} total analyses`}
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* ── Document list ────────────────────────────────────────────── */}
         <div className="rounded-2xl border border-white/[0.06] bg-[#0d0d18] overflow-hidden">

@@ -9,6 +9,7 @@ import { downloadBlob } from '@/lib/utils';
 import {
   Loader2, AlertCircle, ChevronLeft,
   Presentation, Download, Video, CheckCircle2,
+  FileText, FileDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
@@ -27,6 +28,18 @@ export default function ExportPage() {
   const [isExportingPpt, setIsExportingPpt] = useState(false);
   const [pptDone, setPptDone] = useState(false);
 
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [pdfDone, setPdfDone] = useState(false);
+
+  const [isExportingDocx, setIsExportingDocx] = useState(false);
+  const [docxDone, setDocxDone] = useState(false);
+
+  const getTitle = () =>
+    pptOptions.title || document?.originalFileName.replace(/\.[^.]+$/, '') || 'document';
+
+  const safeFileName = (ext: string) =>
+    getTitle().replace(/[^a-zA-Z0-9\s\-_]/g, '').trim().replace(/\s+/g, '_').slice(0, 60) + ext;
+
   const handleExportPpt = async () => {
     if (!document) return;
     setIsExportingPpt(true);
@@ -34,21 +47,51 @@ export default function ExportPage() {
     const toastId = toast.loading('Generating PowerPoint…');
     try {
       const blob = await exportApi.ppt(params.documentId, {
-        title: pptOptions.title || document.originalFileName.replace(/\.[^.]+$/, ''),
+        title: getTitle(),
         theme: pptOptions.theme,
         includeNotes: pptOptions.includeNotes,
       });
-      const fileName = (pptOptions.title || document.originalFileName.replace(/\.[^.]+$/, ''))
-        .replace(/[^a-zA-Z0-9\s-_]/g, '')
-        .trim()
-        .replace(/\s+/g, '_');
-      downloadBlob(blob, `${fileName}.pptx`);
+      downloadBlob(blob, safeFileName('.pptx'));
       setPptDone(true);
       toast.success('PowerPoint downloaded!', { id: toastId });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Export failed', { id: toastId });
     } finally {
       setIsExportingPpt(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!document) return;
+    setIsExportingPdf(true);
+    setPdfDone(false);
+    const toastId = toast.loading('Generating PDF…');
+    try {
+      const blob = await exportApi.pdf(params.documentId, { title: getTitle() });
+      downloadBlob(blob, safeFileName('.pdf'));
+      setPdfDone(true);
+      toast.success('PDF downloaded!', { id: toastId });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Export failed', { id: toastId });
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  const handleExportDocx = async () => {
+    if (!document) return;
+    setIsExportingDocx(true);
+    setDocxDone(false);
+    const toastId = toast.loading('Generating DOCX…');
+    try {
+      const blob = await exportApi.docx(params.documentId, { title: getTitle() });
+      downloadBlob(blob, safeFileName('.docx'));
+      setDocxDone(true);
+      toast.success('DOCX downloaded!', { id: toastId });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Export failed', { id: toastId });
+    } finally {
+      setIsExportingDocx(false);
     }
   };
 
@@ -171,6 +214,60 @@ export default function ExportPage() {
 
             <button disabled className="btn-secondary cursor-not-allowed">
               <Video className="h-4 w-4" /> Export as Video — Coming Soon
+            </button>
+          </div>
+
+          {/* PDF Export */}
+          <div className="card space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/30">
+                <FileDown className="h-5 w-5 text-red-500" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-slate-900 dark:text-white">PDF Document</h2>
+                <p className="text-sm text-slate-500">Clean, formatted PDF with title page and sections</p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleExportPdf}
+              disabled={isExportingPdf}
+              className={cn('btn-primary', pdfDone && 'bg-green-600 hover:bg-green-700')}
+            >
+              {isExportingPdf ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+              ) : pdfDone ? (
+                <><CheckCircle2 className="h-4 w-4" /> Downloaded!</>
+              ) : (
+                <><Download className="h-4 w-4" /> Export as .pdf</>
+              )}
+            </button>
+          </div>
+
+          {/* DOCX Export */}
+          <div className="card space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30">
+                <FileText className="h-5 w-5 text-blue-500" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-slate-900 dark:text-white">Word Document</h2>
+                <p className="text-sm text-slate-500">Structured DOCX with headings and formatted text</p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleExportDocx}
+              disabled={isExportingDocx}
+              className={cn('btn-primary', docxDone && 'bg-green-600 hover:bg-green-700')}
+            >
+              {isExportingDocx ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+              ) : docxDone ? (
+                <><CheckCircle2 className="h-4 w-4" /> Downloaded!</>
+              ) : (
+                <><Download className="h-4 w-4" /> Export as .docx</>
+              )}
             </button>
           </div>
         </div>

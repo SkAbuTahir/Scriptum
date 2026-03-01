@@ -4,6 +4,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import TeleprompterView from '@/components/Teleprompter';
 import { useDocument } from '@/hooks/useDocument';
+import { sanitize } from '@/lib/sanitize';
 import { Loader2, AlertCircle, ChevronLeft } from 'lucide-react';
 
 export default function TeleprompterPage() {
@@ -30,7 +31,7 @@ export default function TeleprompterPage() {
     );
   }
 
-  const text = document.cleanedText || document.rawText;
+  const text = sanitize(document.cleanedText || document.rawText);
 
   return <TeleprompterView text={text} documentTitle={document.originalFileName} documentId={params.documentId} />;
 }

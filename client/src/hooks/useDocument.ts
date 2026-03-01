@@ -1,9 +1,54 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Document, AnalysisResult } from '@/types';
+import { Document, AnalysisResult, AISuggestion } from '@/types';
 import { documentApi, analysisApi } from '@/lib/api';
+import { sanitize } from '@/lib/sanitize';
 import toast from 'react-hot-toast';
+
+/** Sanitize string fields inside an AISuggestion. */
+function sanitizeSuggestion(s: AISuggestion): AISuggestion {
+  return {
+    ...s,
+    original: sanitize(s.original),
+    suggested: sanitize(s.suggested),
+    reason: sanitize(s.reason),
+  };
+}
+
+/** Strip HTML from text fields coming from the API (defense-in-depth). */
+function sanitizeDoc(doc: Document): Document {
+  return {
+    ...doc,
+    rawText: sanitize(doc.rawText),
+    cleanedText: sanitize(doc.cleanedText),
+    originalFileName: sanitize(doc.originalFileName),
+    suggestions: doc.suggestions?.map(sanitizeSuggestion),
+    grammarIssues: doc.grammarIssues?.map((g) => ({
+      ...g,
+      message: sanitize(g.message),
+      shortMessage: g.shortMessage ? sanitize(g.shortMessage) : g.shortMessage,
+      context: g.context ? sanitize(g.context) : g.context,
+      replacements: g.replacements?.map(sanitize),
+    })),
+  };
+}
+
+function sanitizeAnalysis(a: AnalysisResult): AnalysisResult {
+  return {
+    ...a,
+    suggestions: a.suggestions?.map(sanitizeSuggestion),
+    aiReasoning: a.aiReasoning ? sanitize(a.aiReasoning) : a.aiReasoning,
+    humanizationTips: a.humanizationTips?.map(sanitize),
+    grammarIssues: a.grammarIssues?.map((g) => ({
+      ...g,
+      message: sanitize(g.message),
+      shortMessage: g.shortMessage ? sanitize(g.shortMessage) : g.shortMessage,
+      context: g.context ? sanitize(g.context) : g.context,
+      replacements: g.replacements?.map(sanitize),
+    })),
+  };
+}
 
 interface UseDocumentReturn {
   document: Document | null;
@@ -29,7 +74,7 @@ export function useDocument(documentId: string): UseDocumentReturn {
       setIsLoading(true);
       setError(null);
       const doc = await documentApi.get(documentId);
-      setDocument(doc);
+      setDocument(sanitizeDoc(doc));
 
       // If document was previously analyzed, reconstruct analysis state from it
       if (doc.analysisRunAt && doc.aiScore !== null) {
@@ -64,7 +109,7 @@ export function useDocument(documentId: string): UseDocumentReturn {
     const toastId = toast.loading('Running AI analysis…');
     try {
       const result = await analysisApi.analyze(documentId);
-      setAnalysis(result);
+      setAnalysis(sanitizeAnalysis(result));
       toast.success('Analysis complete', { id: toastId });
       // Refresh doc to get updated status
       await refresh();

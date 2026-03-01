@@ -12,6 +12,7 @@ import documentRoutes from './routes/document';
 import analysisRoutes from './routes/analysis';
 import audioRoutes from './routes/audio';
 import exportRoutes from './routes/export';
+import userRoutes from './routes/user';
 
 const app: Application = express();
 
@@ -22,12 +23,25 @@ app.use(
   })
 );
 
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  process.env.NODE_ENV !== 'production' ? 'http://localhost:3000' : null,
+].filter(Boolean) as string[];
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. server-to-server, curl)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Origin ${origin} not allowed by CORS`));
+      }
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 86400, // Cache preflight for 24h
   })
 );
 
@@ -59,6 +73,7 @@ app.use('/api/document', documentRoutes);
 app.use('/api/analyze', analysisRoutes);
 app.use('/api/generate-audio', audioRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/user', userRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((_req: Request, res: Response) => {
@@ -73,11 +88,16 @@ app.use((_req: Request, res: Response) => {
 app.use((err: Error & { status?: number; code?: string }, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Unhandled error:', err);
 
+  // CORS errors
+  if (err.message?.includes('not allowed by CORS')) {
+    return res.status(403).json({ success: false, error: 'CORS: Origin not allowed' });
+  }
+
   // Multer errors
   if (err.code === 'LIMIT_FILE_SIZE') {
     return res.status(413).json({
       success: false,
-      error: `File too large. Maximum size is ${process.env.MAX_FILE_SIZE_MB || 25}MB`,
+      error: `File too large. Maximum size is ${process.env.MAX_FILE_SIZE_MB || 5}MB`,
     });
   }
 

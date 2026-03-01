@@ -13,7 +13,7 @@ const ALLOWED_MIME_TYPES = new Set([
 const ALLOWED_EXTENSIONS = new Set(['.docx', '.pdf', '.txt']);
 
 const MAX_SIZE_BYTES =
-  parseInt(process.env.MAX_FILE_SIZE_MB || '25', 10) * 1024 * 1024;
+  parseInt(process.env.MAX_FILE_SIZE_MB || '5', 10) * 1024 * 1024;
 
 // Ensure upload directory exists
 const uploadDir = path.join(process.cwd(), process.env.UPLOAD_DIR || 'uploads');
