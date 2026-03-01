@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { documentApi } from '@/lib/api';
 import { useUsage } from '@/hooks/useUsage';
-import { DocumentSummary } from '@/types';
+import { DocumentSummary, UsageStats } from '@/types';
 import {
   formatRelativeTime, formatWordCount, sourceTypeLabel,
   cn, grammarScoreLabel,
@@ -20,10 +20,8 @@ import {
   Zap, Globe,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { Footer } from '@/components/ui/footer';
-import { GlowCard } from '@/components/ui/meteor-card';
-import { BorderBeam } from '@/components/ui/border-beam';
-import { NumberTicker } from '@/components/ui/number-ticker';
+import { Footer }        from '@/components/ui/footer';
+import { CardSpotlight }  from '@/components/ui/card-spotlight';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -77,7 +75,7 @@ function RowSkeleton() {
 
 function StatSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200 dark:border-white/[0.07] bg-white dark:bg-white/[0.02] p-5 flex flex-col gap-1">
+    <div className="rounded-2xl border border-slate-200/70 dark:border-white/[0.07] bg-white dark:bg-[#0d0d1a]/90 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.06)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.5),0_4px_16px_rgba(0,0,0,0.4)] p-5 flex flex-col gap-1">
       <div className="flex items-center justify-between mb-2">
         <div className="h-2 w-14 rounded bg-slate-200 dark:bg-white/[0.06] animate-pulse" />
         <div className="h-3.5 w-3.5 rounded bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
@@ -249,6 +247,71 @@ function ScoreToken({ label, value, variant }: {
   );
 }
 
+// ─── AI usage ring ──────────────────────────────────────────────────────────
+
+function AIRing({ usage }: { usage: UsageStats }) {
+  const R     = 16;
+  const circ  = 2 * Math.PI * R;
+  const frac  = Math.min(usage.geminiCallsThisHour / Math.max(usage.maxCallsPerHour, 1), 1);
+  const offset = circ * (1 - frac);
+  const color  = usage.remaining === 0 ? '#ef4444' : usage.remaining <= 3 ? '#f59e0b' : '#6366f1';
+
+  return (
+    <div className="group relative flex-shrink-0">
+      {/* Ring */}
+      <svg width="40" height="40" viewBox="0 0 40 40" className="-rotate-90">
+        <circle cx="20" cy="20" r={R} fill="none" strokeWidth="3"
+          stroke="currentColor" className="text-slate-200 dark:text-white/[0.08]" />
+        <circle cx="20" cy="20" r={R} fill="none" strokeWidth="3"
+          stroke={color} strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={offset}
+          className="transition-all duration-700" />
+      </svg>
+
+      {/* Centre count */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="text-[9px] font-bold tabular-nums leading-none" style={{ color }}>
+          {usage.geminiCallsThisHour}<span className="opacity-40">/{usage.maxCallsPerHour}</span>
+        </span>
+      </div>
+
+      {/* Hover tooltip */}
+      <div className="pointer-events-none absolute right-0 top-full mt-2.5 z-50 w-52
+        rounded-xl border border-slate-200 dark:border-white/[0.08]
+        bg-white dark:bg-[#0d0d1a]
+        shadow-[0_8px_24px_rgba(0,0,0,0.1)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.6)]
+        p-3 text-left
+        opacity-0 group-hover:opacity-100
+        translate-y-1 group-hover:translate-y-0
+        transition-all duration-200">
+        <p className="text-[11px] font-bold text-slate-700 dark:text-white/80 mb-2 flex items-center gap-1.5">
+          <Zap className="h-3 w-3 text-indigo-500" /> AI Analyses
+        </p>
+        <p className="text-[11px] text-slate-500 dark:text-white/40">
+          <span className="font-semibold" style={{ color }}>{usage.geminiCallsThisHour}</span>
+          &nbsp;of {usage.maxCallsPerHour} used this hour
+        </p>
+        {usage.remaining > 0 ? (
+          <p className="mt-1 text-[10px] text-slate-400 dark:text-white/25">
+            {usage.remaining} remaining&nbsp;·&nbsp;
+            resets {new Date(usage.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        ) : (
+          <p className="mt-1 text-[10px] text-red-500 dark:text-red-400 font-semibold">
+            Limit reached&nbsp;·&nbsp;
+            resets {new Date(usage.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </p>
+        )}
+        {usage.totalAnalyses > 0 && (
+          <p className="mt-2 pt-2 border-t border-slate-100 dark:border-white/[0.05] text-[10px] text-slate-400 dark:text-white/25">
+            {usage.totalAnalyses} total analyses lifetime
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
@@ -378,14 +441,17 @@ export default function DashboardPage() {
                 : `${total} document${total !== 1 ? 's' : ''} in your workspace`}
             </p>
           </div>
-          <Link
-            href="/upload"
-            className="group flex-shrink-0 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all active:scale-[0.97]"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">New Document</span>
-            <span className="sm:hidden">New</span>
-          </Link>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            {usage && <AIRing usage={usage} />}
+            <Link
+              href="/upload"
+              className="group inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-500 hover:-translate-y-0.5 transition-all active:scale-[0.97]"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">New Document</span>
+              <span className="sm:hidden">New</span>
+            </Link>
+          </div>
         </div>
 
         {/* ── Stats label ─────────────────────────────────────────────── */}
@@ -402,53 +468,16 @@ export default function DashboardPage() {
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => <StatSkeleton key={i} />)
             : stats.map((s) => (
-                <GlowCard key={s.label} className="p-5 flex flex-col border border-slate-200/30">
+                <CardSpotlight key={s.label} className="p-5 flex flex-col">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-white/25">{s.label}</p>
                     <s.icon className={cn('h-3.5 w-3.5', s.accent)} />
                   </div>
                   <p className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">{s.value}</p>
                   <p className="mt-1 text-[11px] text-slate-400 dark:text-white/25">{s.sub}</p>
-                </GlowCard>
+                </CardSpotlight>
               ))}
         </div>
-
-        {/* ── AI Usage Meter ──────────────────────────────────────────── */}
-        {usage && (
-          <div className="relative mb-8 flex items-center gap-3 overflow-hidden rounded-2xl border border-indigo-200/60 dark:border-indigo-500/20 bg-white/80 backdrop-blur-sm dark:bg-[#0d0d1a]/80 px-5 py-4">
-            <BorderBeam duration={10} colorFrom="#6366f1" colorTo="#a855f7" />
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 dark:bg-indigo-500/10 flex-shrink-0">
-              <Zap className="h-4 w-4 text-indigo-500 dark:text-indigo-400" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1.5">
-                <p className="text-sm font-semibold text-slate-700 dark:text-white/80">
-                  AI analyses used: <span className="text-indigo-600 dark:text-indigo-400">{usage.geminiCallsThisHour}</span> / {usage.maxCallsPerHour} this hour
-                </p>
-                {usage.remaining === 0 && (
-                  <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 ring-1 ring-red-200 dark:bg-red-500/15 dark:text-red-400 dark:ring-red-500/20">
-                    Limit reached
-                  </span>
-                )}
-              </div>
-              <div className="h-1.5 w-full max-w-xs rounded-full bg-slate-100 dark:bg-white/[0.06] overflow-hidden">
-                <div
-                  className={cn(
-                    'h-full rounded-full transition-all duration-700',
-                    usage.remaining === 0 ? 'bg-red-500' : usage.remaining <= 3 ? 'bg-amber-500' : 'bg-indigo-500',
-                  )}
-                  style={{ width: `${Math.round((usage.geminiCallsThisHour / usage.maxCallsPerHour) * 100)}%` }}
-                />
-              </div>
-              <p className="mt-1 text-[11px] text-slate-400 dark:text-white/20">
-                {usage.remaining > 0
-                  ? `${usage.remaining} remaining · resets ${new Date(usage.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                  : `Resets at ${new Date(usage.resetsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-                {usage.totalAnalyses > 0 && ` · ${usage.totalAnalyses} total analyses`}
-              </p>
-            </div>
-          </div>
-        )}
 
         {/* ── Documents label ──────────────────────────────────────────── */}
         <div className="mb-4 flex items-center gap-3">
