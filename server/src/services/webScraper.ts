@@ -79,7 +79,7 @@ function decodeEntities(s: string): string {
 ───────────────────────────────────────────────────────────────────────────── */
 
 function extractStructured(
-  $: cheerio.CheerioAPI,
+  $: ReturnType<typeof cheerio.load>,
   root: cheerio.Cheerio
 ): { text: string; sections: DocumentSection[] } {
 
@@ -94,7 +94,7 @@ function extractStructured(
   const textParts: string[] = [];
 
   root.find('h1, h2, h3, h4, p, li, blockquote, pre')
-    .each((_i, el) => {
+    .each((_i: number, el: cheerio.Element) => {
 
       const tag = (el as any).tagName?.toLowerCase() ?? '';
       const raw = $(el).text() ?? '';
