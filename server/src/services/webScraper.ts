@@ -20,10 +20,6 @@ const STRIP_SELECTORS = [
   'form', 'button[type="submit"]',
 ].join(', ');
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   Candidate content selectors
-───────────────────────────────────────────────────────────────────────────── */
-
 const CONTENT_SELECTORS = [
   'article[class*="post"]',
   'article[class*="entry"]',
@@ -84,7 +80,7 @@ function decodeEntities(s: string): string {
 
 function extractStructured(
   $: cheerio.CheerioAPI,
-  root: cheerio.Cheerio<any>
+  root: cheerio.Cheerio
 ): { text: string; sections: DocumentSection[] } {
 
   const sections: DocumentSection[] = [];
@@ -98,31 +94,32 @@ function extractStructured(
   const textParts: string[] = [];
 
   root.find('h1, h2, h3, h4, p, li, blockquote, pre')
-      .each((_i: number, el: any) => {
+    .each((_i, el) => {
 
-        const tag = (el.tagName ?? '').toLowerCase();
-        const raw = $(el).text() ?? '';
-        const text = decodeEntities(cleanWhitespace(raw));
+      const tag = (el as any).tagName?.toLowerCase() ?? '';
+      const raw = $(el).text() ?? '';
+      const text = decodeEntities(cleanWhitespace(raw));
 
-        if (!text || text.length < 3) return;
+      if (!text || text.length < 3) return;
 
-        if (/^h[1-4]$/.test(tag)) {
-          if (currentSection.paragraphs.length > 0) {
-            sections.push(currentSection);
-            textParts.push(`\n\n${currentSection.title}\n`);
-          }
+      if (/^h[1-4]$/.test(tag)) {
 
-          currentSection = {
-            title: text,
-            paragraphs: [],
-            narrationSegments: [],
-          };
-
-        } else {
-          currentSection.paragraphs.push(text);
-          textParts.push(text);
+        if (currentSection.paragraphs.length > 0) {
+          sections.push(currentSection);
+          textParts.push(`\n\n${currentSection.title}\n`);
         }
-      });
+
+        currentSection = {
+          title: text,
+          paragraphs: [],
+          narrationSegments: [],
+        };
+
+      } else {
+        currentSection.paragraphs.push(text);
+        textParts.push(text);
+      }
+    });
 
   if (currentSection.paragraphs.length > 0) {
     sections.push(currentSection);
@@ -157,6 +154,7 @@ function extractStructured(
 export async function extractFromWebsite(url: string): Promise<ExtractedContent> {
 
   let parsed: URL;
+
   try {
     parsed = new URL(url);
   } catch {
@@ -198,7 +196,7 @@ export async function extractFromWebsite(url: string): Promise<ExtractedContent>
 
   $(STRIP_SELECTORS).remove();
 
-  let contentRoot: cheerio.Cheerio<any> | null = null;
+  let contentRoot: cheerio.Cheerio | null = null;
 
   for (const sel of CONTENT_SELECTORS) {
     const el = $(sel).first();
@@ -218,7 +216,7 @@ export async function extractFromWebsite(url: string): Promise<ExtractedContent>
     rawText: text,
     cleanedText: text,
     structuredSections: sections,
-    wordCount: text.split(/\s+/).length,
+    wordCount: text.split(/\s+/).filter(Boolean).length,
     sourceType: 'website',
     pageTitle: cleanWhitespace(pageTitle),
     pageUrl: url,
