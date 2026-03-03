@@ -38,15 +38,11 @@ export function useTTSPlayback({
 }: UseTTSPlaybackOptions): UseTTSPlaybackReturn {
 
   const audioRef    = useRef<HTMLAudioElement | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef    = useRef<AbortController | null>(null);
   const isActiveRef = useRef(false);
   const statusRef   = useRef<TTSStatus>('idle');
 
-  // Store latest callbacks in refs so ALL hook functions stay stable forever.
-  // Without this, inline callback props change identity each render, causing
-  // useCallback to rebuild stop/start, the engine's useEffect cleanup fires
-  // the old ttsStop mid-playback, which aborts the AbortController => status 0.
+  // Keep latest callbacks in refs so helpers never rebuild on re-render.
   const onPointerRef = useRef(onPointerChange);
   const onStatusRef  = useRef(onStatusChange);
   const onErrorRef   = useRef(onError);
@@ -57,110 +53,101 @@ export function useTTSPlayback({
   useEffect(() => { onErrorRef.current   = onError;         }, [onError]);
   useEffect(() => { tokensRef.current    = tokens;          }, [tokens]);
 
-  // All helpers below have empty or minimal deps — they never rebuild.
-
   const setStatus = useCallback((s: TTSStatus) => {
     statusRef.current = s;
     onStatusRef.current(s);
   }, []);
 
-  const clearTimers = useCallback(() => {
-    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
-    if (audioRef.current)    { audioRef.current.pause(); audioRef.current.src = ''; audioRef.current = null; }
-    if (abortRef.current)    { abortRef.current.abort(); abortRef.current = null; }
+  const clearAudio = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.ontimeupdate = null;
+      audioRef.current.onended      = null;
+      audioRef.current.onerror      = null;
+      audioRef.current.src          = '';
+      audioRef.current              = null;
+    }
+    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
   }, []);
 
+  // ─── Fetch audio blob from server ────────────────────────────────────────────
   const fetchAudio = useCallback(async (text: string, signal: AbortSignal): Promise<string> => {
     const jwt = typeof window !== 'undefined' ? localStorage.getItem('scriptum_token') : null;
-    try {
-      const res = await fetch(API_BASE + '/api/deepgram/tts', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (jwt ?? '') },
-        body:    JSON.stringify({ text }),
-        signal,
-      });
-      if (!res.ok) {
-        const msg = await res.text().catch(() => 'HTTP ' + res.status);
-        throw new Error('TTS ' + res.status + ': ' + msg);
-      }
-      const buf  = await res.arrayBuffer();
-      const blob = new Blob([buf], { type: 'audio/mpeg' });
-      if (blob.size < 100) throw new Error('Empty audio response from Deepgram');
-      return URL.createObjectURL(blob);
-    } catch (err) {
-      // Fallback to browser TTS if Deepgram fails
-      console.warn('[TTS] Deepgram failed, using browser TTS:', err);
-      throw err; // Let caller handle fallback
+    const res = await fetch(API_BASE + '/api/deepgram/tts', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (jwt ?? '') },
+      body:    JSON.stringify({ text }),
+      signal,
+    });
+    if (!res.ok) {
+      const msg = await res.text().catch(() => 'HTTP ' + res.status);
+      throw new Error('TTS ' + res.status + ': ' + msg);
     }
+    const buf  = await res.arrayBuffer();
+    const blob = new Blob([buf], { type: 'audio/mpeg' });
+    if (blob.size < 100) throw new Error('Empty audio response from Deepgram');
+    return URL.createObjectURL(blob);
   }, []);
 
+  // ─── Play blob with ontimeupdate word-sync ───────────────────────────────────
   const playBlob = useCallback(
-    (url: string, startIdx: number, len: number): Promise<void> =>
+    (url: string, chunkStart: number, chunkLen: number): Promise<void> =>
       new Promise((resolve, reject) => {
         if (!isActiveRef.current) { resolve(); return; }
 
-        const audio = new Audio(url);
-        audioRef.current = audio;
+        const audio        = new Audio(url);
+        audioRef.current   = audio;
 
         audio.oncanplaythrough = () => {
           if (!isActiveRef.current) { resolve(); return; }
-
-          const dur       = isFinite(audio.duration) && audio.duration > 0 ? audio.duration : len * 0.38;
-          const msPerWord = (dur * 1000) / Math.max(len, 1);
-
-          console.log('[TTS] chunk start=' + startIdx + ' words=' + len + ' dur=' + dur.toFixed(1) + 's ms/word=' + msPerWord.toFixed(0));
-
-          let localIdx = 0;
-          onPointerRef.current(startIdx);
-
-          intervalRef.current = setInterval(() => {
-            if (!isActiveRef.current) { clearInterval(intervalRef.current!); return; }
-            if (localIdx < len - 1) {
-              localIdx++;
-              onPointerRef.current(startIdx + localIdx);
-            } else {
-              clearInterval(intervalRef.current!);
-              intervalRef.current = null;
-            }
-          }, msPerWord);
-
           audio.play().catch(reject);
         };
 
+        // Real-time word pointer: maps audio.currentTime → word index
+        audio.ontimeupdate = () => {
+          if (!isActiveRef.current) return;
+          const dur = audio.duration;
+          if (!dur || !isFinite(dur)) return;
+          const idx = Math.min(
+            Math.floor((audio.currentTime / dur) * chunkLen),
+            chunkLen - 1,
+          );
+          onPointerRef.current(chunkStart + idx);
+        };
+
         audio.onended = () => {
-          if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
           URL.revokeObjectURL(url);
           resolve();
         };
 
         audio.onerror = () => {
           URL.revokeObjectURL(url);
-          reject(new Error('Audio error at token ' + startIdx));
+          reject(new Error('Audio playback error at chunk starting at token ' + chunkStart));
         };
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
   const start = useCallback(async (): Promise<void> => {
     isActiveRef.current = false;
-    clearTimers();
+    clearAudio();
     isActiveRef.current = true;
 
     const toks = tokensRef.current;
     if (toks.length === 0) return;
 
     setStatus('loading');
+    onPointerRef.current(0);
 
     const chunks = chunkTokens(toks, WORDS_PER_CHUNK);
     const ctrl   = new AbortController();
     abortRef.current = ctrl;
 
-    onPointerRef.current(0);
-
     try {
       for (let i = 0; i < chunks.length; i++) {
         if (!isActiveRef.current) break;
-        const chunk     = chunks[i];
+        const chunk      = chunks[i];
         const chunkStart = i * WORDS_PER_CHUNK;
         const text       = chunk.map((t) => t.original).join(' ');
 
@@ -180,15 +167,14 @@ export function useTTSPlayback({
       console.error('[TTS]', msg);
       onErrorRef.current(msg);
       setStatus('error');
-      clearTimers();
+      clearAudio();
     }
-  }, [clearTimers, fetchAudio, playBlob, setStatus]);
+  }, [clearAudio, fetchAudio, playBlob, setStatus]);
 
   const pause = useCallback((): void => {
     const audio = audioRef.current;
     if (audio && !audio.paused) {
       audio.pause();
-      if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
       setStatus('paused');
     }
   }, [setStatus]);
@@ -203,11 +189,11 @@ export function useTTSPlayback({
 
   const stop = useCallback((): void => {
     isActiveRef.current = false;
-    clearTimers();
+    clearAudio();
     setStatus('idle');
-  }, [clearTimers, setStatus]);
+  }, [clearAudio, setStatus]);
 
-  useEffect(() => () => { isActiveRef.current = false; clearTimers(); }, [clearTimers]);
+  useEffect(() => () => { isActiveRef.current = false; clearAudio(); }, [clearAudio]);
 
   return { start, pause, resume, stop };
 }
