@@ -69,25 +69,60 @@ export async function getOrResetUsage(userId: string): Promise<IUsage> {
 
 /**
  * Check if user can make a Gemini call. Returns remaining count and allowed flag.
+ * Uses atomic operations to prevent race conditions.
  */
 export async function checkAndIncrementUsage(
   userId: string
 ): Promise<{ allowed: boolean; remaining: number; retryAfterMs: number }> {
-  const usage = await getOrResetUsage(userId);
+  const now = new Date();
+  const hourAgo = new Date(now.getTime() - HOUR_MS);
 
-  if (usage.geminiCallsThisHour >= MAX_CALLS_PER_HOUR) {
-    const retryAfterMs = Math.max(0, HOUR_MS - (Date.now() - usage.lastResetAt.getTime()));
+  // Atomic: increment only if under limit and within time window
+  const updated = await UsageModel.findOneAndUpdate(
+    {
+      userId,
+      $or: [
+        { lastResetAt: { $lte: hourAgo } }, // Window expired, will reset
+        { geminiCallsThisHour: { $lt: MAX_CALLS_PER_HOUR } }, // Under limit
+      ],
+    },
+    [
+      {
+        $set: {
+          geminiCallsThisHour: {
+            $cond: [
+              { $lte: ['$lastResetAt', hourAgo] },
+              1, // Reset to 1 if window expired
+              { $add: ['$geminiCallsThisHour', 1] }, // Increment if within window
+            ],
+          },
+          lastResetAt: {
+            $cond: [
+              { $lte: ['$lastResetAt', hourAgo] },
+              now, // Reset timestamp if window expired
+              '$lastResetAt', // Keep existing timestamp
+            ],
+          },
+          totalGeminiCalls: { $add: ['$totalGeminiCalls', 1] },
+          totalAnalyses: { $add: ['$totalAnalyses', 1] },
+        },
+      },
+    ],
+    { new: true, upsert: true }
+  );
+
+  if (!updated) {
+    // Rate limit exceeded
+    const usage = await UsageModel.findOne({ userId });
+    const retryAfterMs = usage
+      ? Math.max(0, HOUR_MS - (Date.now() - usage.lastResetAt.getTime()))
+      : 0;
     return { allowed: false, remaining: 0, retryAfterMs };
   }
 
-  usage.geminiCallsThisHour += 1;
-  usage.totalGeminiCalls += 1;
-  usage.totalAnalyses += 1;
-  await usage.save();
-
   return {
     allowed: true,
-    remaining: MAX_CALLS_PER_HOUR - usage.geminiCallsThisHour,
+    remaining: MAX_CALLS_PER_HOUR - updated.geminiCallsThisHour,
     retryAfterMs: 0,
   };
 }

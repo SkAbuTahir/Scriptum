@@ -74,8 +74,23 @@ export async function checkGrammar(
         },
       }));
   } catch (err) {
-    console.error('LanguageTool grammar check failed:', err);
-    return [];
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[LanguageTool] Grammar check failed:', message);
+    
+    // Return a synthetic error issue to inform the user
+    return [{
+      message: 'Grammar check service temporarily unavailable. Please try again later.',
+      offset: 0,
+      length: 0,
+      replacements: [],
+      context: '',
+      severity: 'warning',
+      rule: {
+        id: 'SERVICE_ERROR',
+        description: 'External grammar service error',
+        category: 'System',
+      },
+    }];
   }
 }
 
@@ -106,10 +121,13 @@ export function summariseGrammarIssues(issues: GrammarIssue[]): {
  */
 export function computeGrammarScore(wordCount: number, issues: GrammarIssue[]): number {
   if (wordCount === 0) return 100;
-  if (issues.length === 0) return 100;
+  
+  // Filter out service errors from scoring
+  const realIssues = issues.filter(i => i.rule.id !== 'SERVICE_ERROR');
+  if (realIssues.length === 0) return 100;
 
   const weights: Record<string, number> = { error: 4, warning: 2, suggestion: 1 };
-  const totalPenalty = issues.reduce((sum, issue) => {
+  const totalPenalty = realIssues.reduce((sum, issue) => {
     return sum + (weights[issue.severity ?? 'warning'] ?? 2);
   }, 0);
 

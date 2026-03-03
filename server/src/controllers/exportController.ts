@@ -39,23 +39,36 @@ export const exportPpt = async (
   };
 
   try {
+    console.log('[PPTX Export] Request received:', { documentId, theme, includeNotes });
+    
     const doc = await DocumentModel.findOne({
       _id: documentId,
       userId: req.user!.userId,
     });
 
     if (!doc) {
+      console.log('[PPTX Export] Document not found:', documentId);
       res.status(404).json({ success: false, error: 'Document not found' });
       return;
     }
 
+    console.log('[PPTX Export] Document found:', {
+      id: doc._id,
+      fileName: doc.originalFileName,
+      hasStructuredContent: !!doc.structuredContent,
+      sections: doc.structuredContent?.sections?.length || 0,
+    });
+
     const pptTitle = title || doc.originalFileName.replace(/\.[^.]+$/, '');
+    console.log('[PPTX Export] Generating with title:', pptTitle);
 
     const buffer = await generatePowerPoint(doc.structuredContent, {
       title: pptTitle,
       theme,
       includeNotes,
     });
+
+    console.log('[PPTX Export] Generated successfully, size:', buffer.length);
 
     const safeFileName = pptTitle
       .replace(/[^a-zA-Z0-9\s-_]/g, '')
@@ -69,7 +82,8 @@ export const exportPpt = async (
 
     res.send(buffer);
   } catch (err) {
-    console.error('PPT export error:', err);
+    console.error('[PPTX Export] ERROR:', err);
+    console.error('[PPTX Export] Stack:', err instanceof Error ? err.stack : 'No stack');
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : 'Export failed',

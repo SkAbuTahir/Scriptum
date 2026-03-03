@@ -7,7 +7,9 @@ import { checkGrammar, computeGrammarScore } from './grammarCheck';
 const MAX_GEMINI_CHARS   = 4_000;
 const MAX_GRAMMAR_CHARS  = 10_000;
 const MIN_ANALYSIS_CHARS = 50;
+const MAX_ANALYSIS_CHARS = 100_000; // Prevent memory issues
 const LONG_SENTENCE_THRESHOLD = 30; // words
+const GEMINI_TIMEOUT_MS = 30_000; // 30 seconds
 
 // ─── Gemini client ────────────────────────────────────────────────────────────
 let _gemini: GoogleGenerativeAI | null = null;
@@ -37,12 +39,23 @@ async function runGeminiAnalysis(text: string): Promise<GeminiAnalysisResult> {
 
   const model = getGemini().getGenerativeModel({
     model: 'gemini-2.0-flash',
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
+    generationConfig: { 
+      responseMimeType: 'application/json', 
+      temperature: 0.1,
+      maxOutputTokens: 2048,
+    },
   });
 
   const prompt = `You are a senior editorial analyst for a professional journalism platform.
 
 Analyse the text below and return a single comprehensive editorial assessment.
+
+Focus on CONTENT INTEGRITY:
+- Flag ALL sentences with statistics, percentages, numbers, dates, or quantifiable claims
+- Identify unverified factual assertions that need sources
+- Detect absolute statements ("always", "never", "all", "none") without evidence
+- Flag scientific/medical claims without citations
+- Identify historical facts or events mentioned without context
 
 Return ONLY valid JSON (no markdown, no extra text):
 {
@@ -56,8 +69,8 @@ Return ONLY valid JSON (no markdown, no extra text):
     "<tip 5>"
   ],
   "claimFlags": [
-    "<exact sentence from text containing a statistic, number, percentage, or strong factual claim requiring source verification>",
-    "...up to 10 sentences"
+    "<exact sentence containing: statistics, percentages, numbers, dates, scientific claims, historical facts, or absolute statements requiring verification>",
+    "...up to 15 sentences"
   ],
   "tone": {
     "dominantTone": "<one of: formal | conversational | persuasive | technical | narrative | instructional>",
@@ -96,9 +109,21 @@ ${sample}
   };
 
   try {
+    const startTime = Date.now();
     const result = await model.generateContent(prompt);
+    const duration = Date.now() - startTime;
+    
+    if (duration > 20000) {
+      console.warn(`[Gemini] Slow response: ${duration}ms`);
+    }
+    
     const raw = result.response.text().trim()
       .replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+    
+    if (!raw) {
+      throw new Error('Empty response from Gemini');
+    }
+    
     const parsed = JSON.parse(raw) as Partial<GeminiAnalysisResult> & {
       tone?: Partial<ToneResult>;
     };
@@ -108,24 +133,32 @@ ${sample}
         ? Math.min(100, Math.max(0, Math.round(parsed.aiScore)))
         : null,
       aiReasoning:      parsed.aiReasoning      ?? '',
-      humanizationTips: (parsed.humanizationTips ?? []).slice(0, 5),
-      claimFlags:       (parsed.claimFlags       ?? []).slice(0, 10),
+      humanizationTips: Array.isArray(parsed.humanizationTips) ? parsed.humanizationTips.slice(0, 5) : [],
+      claimFlags:       Array.isArray(parsed.claimFlags) ? parsed.claimFlags.slice(0, 15) : [],
       tone: {
         dominantTone: parsed.tone?.dominantTone ?? 'neutral',
         confidence:   Math.min(1, Math.max(0, parsed.tone?.confidence ?? 0.5)),
         breakdown:    parsed.tone?.breakdown    ?? fallback.tone.breakdown,
-        biasFlags:    (parsed.tone?.biasFlags   ?? []).slice(0, 5),
+        biasFlags:    Array.isArray(parsed.tone?.biasFlags) ? parsed.tone.biasFlags.slice(0, 5) : [],
       },
     };
   } catch (err) {
-    console.error('[Gemini] combined analysis failed:', err);
-    return fallback;
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('[Gemini] Combined analysis failed:', message);
+    
+    // Return fallback with error indicator
+    return {
+      ...fallback,
+      aiReasoning: 'AI analysis temporarily unavailable. Using fallback analysis.',
+    };
   }
 }
 
 // ─── Long sentence detection (local — no AI) ─────────────────────────────────
 
 function detectLongSentences(text: string, threshold = LONG_SENTENCE_THRESHOLD): string[] {
+  if (!text || text.trim().length === 0) return [];
+  
   const sentences = text.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
   return sentences
     .filter((s) => {
@@ -133,6 +166,35 @@ function detectLongSentences(text: string, threshold = LONG_SENTENCE_THRESHOLD):
       return words.length > threshold;
     })
     .slice(0, 20); // cap at 20 flagged sentences
+}
+
+// ─── Local Content Integrity Check (fallback) ─────────────────────────────────
+
+function detectUnverifiedClaims(text: string): string[] {
+  if (!text || text.trim().length === 0) return [];
+  
+  const sentences = text.split(/(?<=[.!?])\s+/).filter((s) => s.trim().length > 0);
+  const claims: string[] = [];
+  
+  // Patterns that indicate factual claims needing verification
+  const patterns = [
+    /\d+%/,                                    // Percentages
+    /\d+\s*(million|billion|thousand)/i,      // Large numbers
+    /\d{4}/,                                   // Years/dates
+    /\b(always|never|all|none|every|no one)\b/i, // Absolutes
+    /\b(study|research|survey|report)\s+(shows?|finds?|suggests?|indicates?)/i, // Research claims
+    /\b(according to|based on|data shows?|statistics show)/i, // Source indicators
+    /\b(proven|fact|evidence|demonstrated)\b/i, // Certainty claims
+  ];
+  
+  for (const sentence of sentences) {
+    if (patterns.some(pattern => pattern.test(sentence))) {
+      claims.push(sentence.trim());
+      if (claims.length >= 15) break;
+    }
+  }
+  
+  return claims;
 }
 
 // ─── Syllable estimator (local) ───────────────────────────────────────────────
@@ -168,8 +230,8 @@ async function computeReadabilityScore(text: string): Promise<{
   const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 0);
   const wordCount          = words.length;
   const sentenceCount      = Math.max(sentences.length, 1);
-  const avgSentenceLength  = wordCount / sentenceCount;
-  const readingTimeMinutes = wordCount / 238;
+  const avgSentenceLength  = Math.round((wordCount / sentenceCount) * 10) / 10;
+  const readingTimeMinutes = Math.round((wordCount / 238) * 100) / 100;
 
   const avgSyllables =
     words.reduce((sum, w) => sum + estimateSyllables(w), 0) / Math.max(wordCount, 1);
@@ -217,18 +279,47 @@ async function computeReadabilityScore(text: string): Promise<{
 // ─── Main Analysis Orchestrator ───────────────────────────────────────────────
 
 export async function analyseDocument(text: string): Promise<AnalysisResult> {
+  // Validate input
   if (!text || text.trim().length < MIN_ANALYSIS_CHARS) {
     throw new Error(`Text is too short to analyse (minimum ${MIN_ANALYSIS_CHARS} characters).`);
   }
 
-  const grammarText = text.slice(0, MAX_GRAMMAR_CHARS);
+  const cleanText = text.trim();
+  
+  // Prevent memory issues with very large documents
+  if (cleanText.length > MAX_ANALYSIS_CHARS) {
+    throw new Error(`Text is too long to analyse (maximum ${MAX_ANALYSIS_CHARS} characters).`);
+  }
 
-  // Run grammar + readability (no AI cost) in parallel with the single Gemini call
+  const grammarText = cleanText.slice(0, MAX_GRAMMAR_CHARS);
+
+  // Run all analyses in parallel for performance
   const [grammarIssues, readabilityData, geminiData] = await Promise.all([
-    checkGrammar(grammarText),
-    computeReadabilityScore(text),
-    runGeminiAnalysis(text),
-  ]) as [GrammarIssue[], Awaited<ReturnType<typeof computeReadabilityScore>>, GeminiAnalysisResult];
+    checkGrammar(grammarText).catch(err => {
+      console.error('[Analysis] Grammar check failed:', err);
+      return [];
+    }),
+    computeReadabilityScore(cleanText).catch(err => {
+      console.error('[Analysis] Readability check failed:', err);
+      throw err; // Readability is critical
+    }),
+    runGeminiAnalysis(cleanText).catch(err => {
+      console.error('[Analysis] Gemini analysis failed:', err);
+      // Return fallback instead of failing
+      return {
+        aiScore: null,
+        aiReasoning: 'AI analysis unavailable',
+        humanizationTips: [],
+        claimFlags: [],
+        tone: {
+          dominantTone: 'neutral',
+          confidence: 0.5,
+          breakdown: { formal: 0.5, conversational: 0.5, persuasive: 0, technical: 0, narrative: 0, instructional: 0 },
+          biasFlags: [],
+        },
+      };
+    }),
+  ]);
 
   const {
     score: readabilityScore,
@@ -240,13 +331,28 @@ export async function analyseDocument(text: string): Promise<AnalysisResult> {
   } = readabilityData;
 
   const grammarScore    = computeGrammarScore(wordCount, grammarIssues);
-  const longSentences   = detectLongSentences(text);
+  const longSentences   = detectLongSentences(cleanText);
+  
+  // Use local integrity check as fallback if Gemini didn't return claims
+  const claimFlags = geminiData.claimFlags.length > 0 
+    ? geminiData.claimFlags 
+    : detectUnverifiedClaims(cleanText);
+
+  // Log analysis summary for monitoring
+  console.log('[Analysis] Complete:', {
+    wordCount,
+    sentenceCount,
+    grammarIssues: grammarIssues.length,
+    claimFlags: claimFlags.length,
+    aiScore: geminiData.aiScore,
+    readabilityScore,
+  });
 
   return {
     aiScore:             geminiData.aiScore,
     aiReasoning:         geminiData.aiReasoning,
     humanizationTips:    geminiData.humanizationTips,
-    claimFlags:          geminiData.claimFlags,
+    claimFlags,
     grammarIssues,
     grammarScore,
     readabilityScore,

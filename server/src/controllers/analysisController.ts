@@ -66,9 +66,11 @@ export const analyzeDocument = async (
       doc.grammarScore  !== null;
 
     if (isCacheHit) {
+      // Don't charge user for cached results - return usage quota
       res.json({
         success: true,
         cached: true,
+        remaining,
         data: {
           documentId:          id,
           aiScore:             doc.aiScore,
@@ -152,8 +154,9 @@ export const analyzeDocument = async (
       message: 'Analysis complete',
     });
   } catch (err) {
+    // Reset status and don't save failed analysis
     await DocumentModel.findByIdAndUpdate(id, { status: 'pending' });
-    console.error('Analysis error:', err);
+    console.error('[Analysis] Error:', err instanceof Error ? err.message : err);
     res.status(500).json({
       success: false,
       error: err instanceof Error ? err.message : 'Analysis failed',

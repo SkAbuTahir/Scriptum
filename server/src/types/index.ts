@@ -69,7 +69,7 @@ export interface AnalysisResult {
   longSentences:       string[];
   wordCount:           number;
   sentenceCount:       number;
-  tone:                ToneResult;
+  tone:                ToneResult | null;
   analyzedAt:          Date;
 }
 

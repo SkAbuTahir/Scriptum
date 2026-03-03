@@ -9,7 +9,7 @@ let _client: ReturnType<typeof createClient> | null = null;
 function getClient(): ReturnType<typeof createClient> {
   if (!_client) {
     const key = process.env.DEEPGRAM_API_KEY;
-    if (!key) throw new Error('DEEPGRAM_API_KEY is not set');
+    if (!key) throw new Error('DEEPGRAM_API_KEY is not set in .env file');
     _client = createClient(key);
   }
   return _client;
@@ -25,11 +25,16 @@ export interface TempKeyResult {
 }
 
 export async function generateTempKey(ttlSeconds = 900): Promise<TempKeyResult> {
+  const projectId = process.env.DEEPGRAM_PROJECT_ID;
+  if (!projectId) {
+    throw new Error('DEEPGRAM_PROJECT_ID is not set in .env file. Get it from https://console.deepgram.com/');
+  }
+
   const client = getClient();
 
   // Create a temporary key with limited scope
   const response = await client.manage.createProjectKey(
-    process.env.DEEPGRAM_PROJECT_ID as string,
+    projectId,
     {
       comment: 'teleprompter-session',
       scopes: ['usage:write'],
