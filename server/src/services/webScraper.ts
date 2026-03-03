@@ -177,6 +177,7 @@ export async function extractFromWebsite(url: string): Promise<ExtractedContent>
       },
       timeout: 20000,
       maxRedirects: 5,
+      maxContentLength: 10 * 1024 * 1024, // 10MB limit
       responseType: 'text',
     });
 
@@ -184,6 +185,14 @@ export async function extractFromWebsite(url: string): Promise<ExtractedContent>
 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    console.error('[WebScraper] Failed to fetch:', url, msg);
+    
+    if (msg.includes('maxContentLength')) {
+      throw new Error('The webpage is too large to process (max 10MB).');
+    }
+    if (msg.includes('timeout')) {
+      throw new Error('The webpage took too long to respond. Please try again.');
+    }
     throw new Error(`Failed to fetch the webpage: ${msg}`);
   }
 

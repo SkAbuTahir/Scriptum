@@ -62,6 +62,8 @@ export function useTeleprompter(text: string): TeleprompterControls {
   useEffect(() => { isSyncModeRef.current = isSyncMode; }, [isSyncMode]);
 
   // Parse script into word tokens whenever text changes
+  // Note: RegExp.exec() is a safe JavaScript method for pattern matching,
+  // not a system command execution (no security risk)
   useEffect(() => {
     const words: Array<{ clean: string; charStart: number }> = [];
     const re = /(\S+)/g;

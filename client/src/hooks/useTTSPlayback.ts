@@ -72,20 +72,26 @@ export function useTTSPlayback({
 
   const fetchAudio = useCallback(async (text: string, signal: AbortSignal): Promise<string> => {
     const jwt = typeof window !== 'undefined' ? localStorage.getItem('scriptum_token') : null;
-    const res = await fetch(API_BASE + '/api/deepgram/tts', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (jwt ?? '') },
-      body:    JSON.stringify({ text }),
-      signal,
-    });
-    if (!res.ok) {
-      const msg = await res.text().catch(() => 'HTTP ' + res.status);
-      throw new Error('TTS ' + res.status + ': ' + msg);
+    try {
+      const res = await fetch(API_BASE + '/api/deepgram/tts', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (jwt ?? '') },
+        body:    JSON.stringify({ text }),
+        signal,
+      });
+      if (!res.ok) {
+        const msg = await res.text().catch(() => 'HTTP ' + res.status);
+        throw new Error('TTS ' + res.status + ': ' + msg);
+      }
+      const buf  = await res.arrayBuffer();
+      const blob = new Blob([buf], { type: 'audio/mpeg' });
+      if (blob.size < 100) throw new Error('Empty audio response from Deepgram');
+      return URL.createObjectURL(blob);
+    } catch (err) {
+      // Fallback to browser TTS if Deepgram fails
+      console.warn('[TTS] Deepgram failed, using browser TTS:', err);
+      throw err; // Let caller handle fallback
     }
-    const buf  = await res.arrayBuffer();
-    const blob = new Blob([buf], { type: 'audio/mpeg' });
-    if (blob.size < 100) throw new Error('Empty audio response from Deepgram');
-    return URL.createObjectURL(blob);
   }, []);
 
   const playBlob = useCallback(

@@ -62,12 +62,19 @@ export function scoreLabel(score: number, type: 'ai' | 'plagiarism' | 'readabili
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = globalThis.document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  try {
+    const url = URL.createObjectURL(blob);
+    const a = globalThis.document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    globalThis.document.body.appendChild(a);
+    a.click();
+    globalThis.document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  } catch (err) {
+    console.error('Download failed:', err);
+    throw err;
+  }
 }
 
 export function sourceTypeLabel(sourceType: string): string {

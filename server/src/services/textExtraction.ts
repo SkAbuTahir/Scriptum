@@ -175,6 +175,8 @@ export async function extractFromYouTube(youtubeUrl: string): Promise<ExtractedC
     segments = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' })
       .catch(() => YoutubeTranscript.fetchTranscript(videoId));
   } catch (err) {
+    console.error('[YouTube] Transcript fetch failed:', videoId, err);
+    
     if (
       err instanceof YoutubeTranscriptDisabledError ||
       err instanceof YoutubeTranscriptNotAvailableError

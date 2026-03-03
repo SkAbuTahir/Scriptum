@@ -34,6 +34,7 @@ interface Props {
 }
 
 // ── Tokeniser ──────────────────────────────────────────────────────────────
+// Note: Uses RegExp.exec() for safe text tokenization (not system command execution)
 interface Token {
   text: string;
   start: number;

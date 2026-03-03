@@ -30,6 +30,8 @@ api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('scriptum_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
+      // Add custom header for CSRF protection
+      config.headers['X-Requested-With'] = 'XMLHttpRequest';
     }
   }
   return config;

@@ -79,9 +79,9 @@ export function useDocument(documentId: string): UseDocumentReturn {
           longSentences:    doc.longSentences    ?? [],
           humanizationTips: doc.humanizationTips ?? [],
           aiReasoning:      doc.aiReasoning      ?? '',
-          tone:             doc.tone             ?? undefined,
+          tone:             doc.tone             ?? null,
           wordCount:        doc.wordCount,
-          sentenceCount:    0,
+          sentenceCount:    doc.sentenceCount    ?? 0,
           analyzedAt:       doc.analysisRunAt,
         });
       }
