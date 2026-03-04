@@ -1,20 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import AnalysisPanel from '@/components/AnalysisPanel';
 import { useDocument } from '@/hooks/useDocument';
 import {
   Save, BarChart2, Loader2, Tv2, ExternalLink,
-  ChevronLeft, FileText, AlertCircle, RefreshCw,
+  ChevronLeft, FileText, AlertCircle,
 } from 'lucide-react';
 import { formatWordCount, cn } from '@/lib/utils';
 import toast from 'react-hot-toast';
 
 export default function EditorPage() {
   const params = useParams<{ documentId: string }>();
-  const router = useRouter();
   const documentId = params.documentId;
 
   const { document, isLoading, isAnalyzing, error, analysis, analyze, updateContent } =
@@ -25,7 +24,6 @@ export default function EditorPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'edit' | 'analysis'>('edit');
 
-  // Populate editor once doc loads
   useEffect(() => {
     if (document && !isDirty) {
       setEditorText(document.cleanedText);
@@ -42,6 +40,7 @@ export default function EditorPage() {
     try {
       await updateContent(editorText);
       setIsDirty(false);
+      toast.success('Saved');
     } finally {
       setIsSaving(false);
     }
@@ -49,6 +48,7 @@ export default function EditorPage() {
 
   const wordCount = editorText.trim().split(/\s+/).filter(Boolean).length;
 
+  /* ── Loading ── */
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -57,6 +57,7 @@ export default function EditorPage() {
     );
   }
 
+  /* ── Error ── */
   if (error || !document) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4">
@@ -115,23 +116,15 @@ export default function EditorPage() {
               disabled={isAnalyzing}
               className="btn-secondary py-1.5 px-3 text-xs"
             >
-              {isAnalyzing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <BarChart2 className="h-3.5 w-3.5" />
-              )}
+              {isAnalyzing
+                ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                : <BarChart2 className="h-3.5 w-3.5" />}
               {isAnalyzing ? 'Analysing…' : 'Analyse'}
             </button>
-            <Link
-              href={`/teleprompter/${documentId}`}
-              className="btn-secondary py-1.5 px-3 text-xs"
-            >
+            <Link href={`/teleprompter/${documentId}`} className="btn-secondary py-1.5 px-3 text-xs">
               <Tv2 className="h-3.5 w-3.5" /> Teleprompter
             </Link>
-            <Link
-              href={`/export/${documentId}`}
-              className="btn-secondary py-1.5 px-3 text-xs"
-            >
+            <Link href={`/export/${documentId}`} className="btn-secondary py-1.5 px-3 text-xs">
               <ExternalLink className="h-3.5 w-3.5" /> Export
             </Link>
           </div>
@@ -165,12 +158,13 @@ export default function EditorPage() {
         {/* Right – Analysis */}
         <div className={cn(
           'w-full md:w-96 flex-shrink-0',
-          activeTab === 'edit' && 'hidden md:block'
+          activeTab === 'edit' && 'hidden md:block',
         )}>
           <AnalysisPanel
             analysis={analysis}
             isAnalyzing={isAnalyzing}
             onAnalyze={analyze}
+            onSave={isDirty ? handleSave : undefined}
             documentStatus={document.status}
           />
         </div>
@@ -178,3 +172,4 @@ export default function EditorPage() {
     </div>
   );
 }
+

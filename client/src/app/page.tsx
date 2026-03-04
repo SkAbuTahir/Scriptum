@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Footer } from '@/components/ui/footer';
 import { SpotlightCard } from '@/components/ui/spotlight';
+import { BackgroundDots, BackgroundGrid } from '@/components/ui/background-dots';
 import { MeteorCard, GlowCard } from '@/components/ui/meteor-card';
 import { BorderBeam } from '@/components/ui/border-beam';
 import { NumberTicker } from '@/components/ui/number-ticker';
@@ -99,6 +100,12 @@ function HeroSection() {
         style={{ background: 'radial-gradient(ellipse 60% 50% at 50% -10%, rgba(99,102,241,0.35) 0%, transparent 80%)' }}
       />
 
+      {/* Aceternity dot-grid background */}
+      <BackgroundDots gap={22} dotSize={1} className="dark:opacity-100 opacity-60" />
+
+      {/* Subtle line grid (dark mode only) */}
+      <BackgroundGrid isDark className="hidden dark:block" />
+
       <div className="relative z-10 mx-auto max-w-3xl text-center">
         {/* Badge */}
         <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-indigo-200/80 bg-indigo-50/80 px-3 py-0.5 backdrop-blur-sm dark:border-indigo-500/20 dark:bg-indigo-500/10">
@@ -112,7 +119,9 @@ function HeroSection() {
         {/* Headline */}
         <h1 className="text-[2.75rem] font-extrabold leading-[1.08] tracking-tight text-slate-900 sm:text-5xl lg:text-6xl dark:text-white">
           Write. Analyse.{' '}
-          <span className="bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500 bg-clip-text text-transparent">
+          <span
+            className="bg-gradient-to-r from-indigo-500 via-violet-500 to-indigo-400 bg-clip-text text-transparent bg-[length:200%_auto] animate-[gradient-x_4s_ease_infinite]"
+          >
             Present.
           </span>
         </h1>
