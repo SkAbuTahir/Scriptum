@@ -98,7 +98,7 @@ export interface AnalysisProgress {
 
 export interface AnalysisResult {
   documentId:          string;
-  aiScore:             number;
+  aiScore:             number | null;
   aiReasoning?:        string;
   humanizationTips?:   string[];
   claimFlags?:         string[];

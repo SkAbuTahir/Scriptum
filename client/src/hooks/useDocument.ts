@@ -68,10 +68,11 @@ export function useDocument(documentId: string): UseDocumentReturn {
       setDocument(sanitizeDoc(doc));
 
       // If document was previously analyzed, reconstruct analysis state from it
-      if (doc.analysisRunAt && doc.aiScore !== null) {
+      if (doc.analysisRunAt) {
+        console.log('[useDocument] Loading cached analysis. aiScore from DB:', doc.aiScore);
         setAnalysis({
           documentId:       doc._id,
-          aiScore:          doc.aiScore         ?? 0,
+          aiScore:          doc.aiScore ?? null,
           grammarScore:     doc.grammarScore     ?? 0,
           readabilityScore: doc.readabilityScore ?? 0,
           grammarIssues:    doc.grammarIssues    ?? [],
@@ -102,7 +103,8 @@ export function useDocument(documentId: string): UseDocumentReturn {
     setIsAnalyzing(true);
     const toastId = toast.loading('Running AI analysis…');
     try {
-      const result = await analysisApi.analyze(documentId);
+      const result = await analysisApi.analyze(documentId, true); // Force fresh analysis
+      console.log('[useDocument] Fresh analysis result. aiScore:', result.aiScore);
       setAnalysis(sanitizeAnalysis(result));
       toast.success('Analysis complete', { id: toastId });
       // Refresh doc to get updated status
