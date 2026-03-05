@@ -73,6 +73,10 @@ export interface Document {
   humanizationTips: string[];
   aiReasoning: string | null;
   tone: ToneResult | null;
+  sentenceCount: number | null;
+  readingTimeMinutes: number | null;
+  fleschGradeLevel: string | null;
+  avgSentenceLength: number | null;
   analysisRunAt: string | null;
   status: 'pending' | 'processing' | 'analyzed' | 'ready';
   createdAt: string;
@@ -98,7 +102,7 @@ export interface AnalysisProgress {
 
 export interface AnalysisResult {
   documentId:          string;
-  aiScore:             number;
+  aiScore:             number | null;
   aiReasoning?:        string;
   humanizationTips?:   string[];
   claimFlags?:         string[];

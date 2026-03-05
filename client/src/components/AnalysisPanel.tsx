@@ -373,7 +373,7 @@ function AnalysisPanel({
           <div>
             <SectionLabel icon={BarChart3} label="Editorial Scores" isDark={D} />
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <ScoreRing value={aiScore >= 0 ? aiScore : 0} label="AI Score"
+              <ScoreRing value={aiScore} label="AI Score"
                 sublabel={aiScore >= 0 ? aiVerdict : undefined} isDark={D} inverted />
               <ScoreRing value={grammarScore} label="Grammar"    sublabel={grammarScoreLabel(grammarScore)} isDark={D} />
               <ScoreRing value={readability}  label="Readability" isDark={D} />
@@ -466,7 +466,7 @@ function AnalysisPanel({
               aiScore >= 70 ? (D ? 'bg-red-950/30 border-red-900/40'    : 'bg-red-50 border-red-200')
               : aiScore >= 40 ? (D ? 'bg-amber-950/30 border-amber-900/40' : 'bg-amber-50 border-amber-200')
               :                  (D ? 'bg-green-950/30 border-green-900/40' : 'bg-green-50 border-green-200'))}>
-              <ScoreRing value={aiScore >= 0 ? aiScore : 0} label="AI Score" size="lg" isDark={D} inverted />
+              <ScoreRing value={aiScore} label="AI Score" size="lg" isDark={D} inverted />
               <span className={cn('rounded-full px-4 py-1.5 text-xs font-bold flex items-center gap-1.5',
                 aiScore >= 70 ? (D ? 'bg-red-900/50 text-red-200'    : 'bg-red-100 text-red-700')
                 : aiScore >= 40 ? (D ? 'bg-amber-900/50 text-amber-200' : 'bg-amber-100 text-amber-700')
