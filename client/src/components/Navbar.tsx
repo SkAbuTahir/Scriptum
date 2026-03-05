@@ -51,7 +51,7 @@ export default function Navbar() {
           <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 shadow-md shadow-indigo-500/25 group-hover:shadow-indigo-500/40 transition-shadow">
             <BookOpen className="h-4 w-4 text-white" />
           </div>
-          <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">Scriptum</span>
+          <span className="text-sm font-bold tracking-tight text-slate-900 dark:text-white">Ultimoversio</span>
         </Link>
 
         {/* Desktop nav */}

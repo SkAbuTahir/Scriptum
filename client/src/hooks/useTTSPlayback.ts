@@ -72,7 +72,7 @@ export function useTTSPlayback({
 
   // ─── Fetch audio blob from server ────────────────────────────────────────────
   const fetchAudio = useCallback(async (text: string, signal: AbortSignal): Promise<string> => {
-    const jwt = typeof window !== 'undefined' ? localStorage.getItem('scriptum_token') : null;
+    const jwt = typeof window !== 'undefined' ? localStorage.getItem('ultimoversio_token') : null;
     const res = await fetch(API_BASE + '/api/deepgram/tts', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (jwt ?? '') },

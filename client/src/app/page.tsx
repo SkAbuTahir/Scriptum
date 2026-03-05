@@ -46,7 +46,7 @@ function LandingNav() {
           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 shadow-md shadow-indigo-500/30 transition-colors group-hover:bg-indigo-500">
             <BookOpen className="h-3.5 w-3.5 text-white" />
           </div>
-          <span className="text-sm font-bold text-slate-900 dark:text-white">Scriptum</span>
+          <span className="text-sm font-bold text-slate-900 dark:text-white">Ultimoversio</span>
         </Link>
 
         <nav className="hidden items-center gap-5 text-sm font-medium text-slate-500 dark:text-white/40 md:flex">
@@ -127,7 +127,7 @@ function HeroSection() {
         </h1>
 
         <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-500 dark:text-white/40">
-          Upload any document â€” Scriptum runs deep AI analysis, fixes grammar, detects plagiarism, and delivers
+          Upload any document — Ultimoversio runs deep AI analysis, fixes grammar, detects plagiarism, and delivers
           polished exports in seconds.
         </p>
 
@@ -469,7 +469,7 @@ function CtaSection() {
               Ready to write smarter?
             </h2>
             <p className="mt-1 text-sm text-slate-500 dark:text-white/40">
-              Join thousands of professionals who use Scriptum to produce polished, impactful documents.
+              Join thousands of professionals who use Ultimoversio to produce polished, impactful documents.
             </p>
           </div>
           <Link
