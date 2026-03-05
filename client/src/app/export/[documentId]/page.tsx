@@ -44,7 +44,7 @@ export default function ExportPage() {
     if (!document) return;
     setIsExportingPpt(true);
     setPptDone(false);
-    const toastId = toast.loading('Generating PowerPoint…');
+    const id = toast.loading('Generating PowerPoint…');
     try {
       const blob = await exportApi.ppt(params.documentId, {
         title: getTitle(),
@@ -53,9 +53,9 @@ export default function ExportPage() {
       });
       downloadBlob(blob, safeFileName('.pptx'));
       setPptDone(true);
-      toast.success('PowerPoint downloaded!', { id: toastId });
+      toast.success('PowerPoint downloaded!', { id });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Export failed', { id: toastId });
+      toast.error(err instanceof Error ? err.message : 'Export failed', { id });
     } finally {
       setIsExportingPpt(false);
     }
@@ -65,14 +65,14 @@ export default function ExportPage() {
     if (!document) return;
     setIsExportingPdf(true);
     setPdfDone(false);
-    const toastId = toast.loading('Generating PDF…');
+    const id = toast.loading('Generating PDF…');
     try {
       const blob = await exportApi.pdf(params.documentId, { title: getTitle() });
       downloadBlob(blob, safeFileName('.pdf'));
       setPdfDone(true);
-      toast.success('PDF downloaded!', { id: toastId });
+      toast.success('PDF downloaded!', { id });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Export failed', { id: toastId });
+      toast.error(err instanceof Error ? err.message : 'Export failed', { id });
     } finally {
       setIsExportingPdf(false);
     }
@@ -82,19 +82,20 @@ export default function ExportPage() {
     if (!document) return;
     setIsExportingDocx(true);
     setDocxDone(false);
-    const toastId = toast.loading('Generating DOCX…');
+    const id = toast.loading('Generating Word document…');
     try {
       const blob = await exportApi.docx(params.documentId, { title: getTitle() });
       downloadBlob(blob, safeFileName('.docx'));
       setDocxDone(true);
-      toast.success('DOCX downloaded!', { id: toastId });
+      toast.success('Word document downloaded!', { id });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Export failed', { id: toastId });
+      toast.error(err instanceof Error ? err.message : 'Export failed', { id });
     } finally {
       setIsExportingDocx(false);
     }
   };
 
+  /* ── Loading ── */
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -103,12 +104,15 @@ export default function ExportPage() {
     );
   }
 
+  /* ── Error ── */
   if (error || !document) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4">
         <AlertCircle className="h-12 w-12 text-red-400" />
         <p>{error || 'Document not found'}</p>
-        <Link href="/dashboard" className="btn-secondary"><ChevronLeft className="h-4 w-4" /> Dashboard</Link>
+        <Link href="/dashboard" className="btn-secondary">
+          <ChevronLeft className="h-4 w-4" /> Dashboard
+        </Link>
       </div>
     );
   }
@@ -130,7 +134,8 @@ export default function ExportPage() {
         </p>
 
         <div className="space-y-6">
-          {/* PowerPoint Export */}
+
+          {/* ── PowerPoint Export ── */}
           <div className="card space-y-5">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 dark:bg-orange-950/30">
@@ -153,7 +158,6 @@ export default function ExportPage() {
                   onChange={(e) => setPptOptions((p) => ({ ...p, title: e.target.value }))}
                 />
               </div>
-
               <div>
                 <label className="label">Theme</label>
                 <select
@@ -195,7 +199,7 @@ export default function ExportPage() {
             </button>
           </div>
 
-          {/* Video Export (future) */}
+          {/* ── Video Export (future) ── */}
           <div className="card space-y-4 opacity-60">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-violet-50 dark:bg-violet-950/30">
@@ -211,13 +215,12 @@ export default function ExportPage() {
                 </p>
               </div>
             </div>
-
             <button disabled className="btn-secondary cursor-not-allowed">
               <Video className="h-4 w-4" /> Export as Video — Coming Soon
             </button>
           </div>
 
-          {/* PDF Export */}
+          {/* ── PDF Export ── */}
           <div className="card space-y-5">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 dark:bg-red-950/30">
@@ -228,23 +231,22 @@ export default function ExportPage() {
                 <p className="text-sm text-slate-500">Clean, formatted PDF with title page and sections</p>
               </div>
             </div>
-
             <button
               onClick={handleExportPdf}
               disabled={isExportingPdf}
               className={cn('btn-primary', pdfDone && 'bg-green-600 hover:bg-green-700')}
             >
               {isExportingPdf ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating…</>
               ) : pdfDone ? (
-                <><CheckCircle2 className="h-4 w-4" /> Downloaded!</>
+                <><CheckCircle2 className="h-3.5 w-3.5" /> Downloaded!</>
               ) : (
-                <><Download className="h-4 w-4" /> Export as .pdf</>
+                <><Download className="h-3.5 w-3.5" /> Export as .pdf</>
               )}
             </button>
           </div>
 
-          {/* DOCX Export */}
+          {/* ── DOCX Export ── */}
           <div className="card space-y-5">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950/30">
@@ -255,23 +257,24 @@ export default function ExportPage() {
                 <p className="text-sm text-slate-500">Structured DOCX with headings and formatted text</p>
               </div>
             </div>
-
             <button
               onClick={handleExportDocx}
               disabled={isExportingDocx}
               className={cn('btn-primary', docxDone && 'bg-green-600 hover:bg-green-700')}
             >
               {isExportingDocx ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating…</>
               ) : docxDone ? (
-                <><CheckCircle2 className="h-4 w-4" /> Downloaded!</>
+                <><CheckCircle2 className="h-3.5 w-3.5" /> Downloaded!</>
               ) : (
-                <><Download className="h-4 w-4" /> Export as .docx</>
+                <><Download className="h-3.5 w-3.5" /> Export as .docx</>
               )}
             </button>
           </div>
+
         </div>
       </main>
     </div>
   );
 }
+

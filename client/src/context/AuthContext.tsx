@@ -37,8 +37,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Hydrate from localStorage on mount
   useEffect(() => {
     try {
-      const token = localStorage.getItem('scriptum_token');
-      const userRaw = localStorage.getItem('scriptum_user');
+      const token = localStorage.getItem('ultimoversio_token');
+      const userRaw = localStorage.getItem('ultimoversio_user');
       if (token && userRaw) {
         const user = JSON.parse(userRaw) as User;
         setState({ user, token, isLoading: false, isAuthenticated: true });
@@ -51,8 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const persist = useCallback((token: string, user: User) => {
-    localStorage.setItem('scriptum_token', token);
-    localStorage.setItem('scriptum_user', JSON.stringify(user));
+    localStorage.setItem('ultimoversio_token', token);
+    localStorage.setItem('ultimoversio_user', JSON.stringify(user));
     setState({ user, token, isLoading: false, isAuthenticated: true });
   }, []);
 
@@ -67,8 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const logout = useCallback(() => {
-    localStorage.removeItem('scriptum_token');
-    localStorage.removeItem('scriptum_user');
+    localStorage.removeItem('ultimoversio_token');
+    localStorage.removeItem('ultimoversio_user');
     setState({ user: null, token: null, isLoading: false, isAuthenticated: false });
   }, []);
 

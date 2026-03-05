@@ -1,16 +1,18 @@
 import { createClient } from '@deepgram/sdk';
-import { pipeline } from 'stream/promises';
-import { PassThrough } from 'stream';
+import axios from 'axios';
 
 // ─── Client singleton ─────────────────────────────────────────────────────────
 
-let _client: ReturnType<typeof createClient> | null = null;
+let _client:    ReturnType<typeof createClient> | null = null;
+let _cachedKey: string | undefined;
 
 function getClient(): ReturnType<typeof createClient> {
-  if (!_client) {
-    const key = process.env.DEEPGRAM_API_KEY;
-    if (!key) throw new Error('DEEPGRAM_API_KEY is not set in .env file');
-    _client = createClient(key);
+  const key = process.env.DEEPGRAM_API_KEY;
+  if (!key) throw new Error('DEEPGRAM_API_KEY is not set in .env file');
+  // Re-create client if key changed (e.g. after .env hot-reload)
+  if (!_client || _cachedKey !== key) {
+    _client    = createClient(key);
+    _cachedKey = key;
   }
   return _client;
 }
@@ -51,25 +53,36 @@ export async function generateTempKey(ttlSeconds = 900): Promise<TempKeyResult> 
 }
 
 // ─── TTS streaming ────────────────────────────────────────────────────────────
-// Uses the official SDK speak.request() pattern.
+// Uses Deepgram REST API directly so we can check HTTP status before streaming.
 // Returns a Node.js ReadableStream suitable for piping to an Express response.
 
 export async function streamTTS(text: string, model = 'aura-2-draco-en'): Promise<NodeJS.ReadableStream> {
-  const client = getClient();
+  const key = process.env.DEEPGRAM_API_KEY;
+  if (!key) throw new Error('DEEPGRAM_API_KEY is not set');
 
-  const response = await client.speak.request(
+  const response = await axios.post(
+    `https://api.deepgram.com/v1/speak?model=${model}&encoding=mp3`,
     { text },
-    { model },
+    {
+      headers: {
+        Authorization: `Token ${key}`,
+        'Content-Type': 'application/json',
+      },
+      responseType: 'stream',
+      timeout: 60_000,
+      validateStatus: null, // don't throw on non-2xx — we'll check manually
+    },
   );
 
-  const webStream = await response.getStream();
-  if (!webStream) throw new Error('Deepgram TTS returned no stream');
+  if (response.status !== 200) {
+    // Drain the error body so we can surface a useful message
+    const chunks: Buffer[] = [];
+    for await (const chunk of response.data as NodeJS.ReadableStream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    const body = Buffer.concat(chunks).toString('utf8');
+    throw new Error(body || `Deepgram TTS error: HTTP ${response.status}`);
+  }
 
-  // Convert Web ReadableStream → Node PassThrough so Express can pipe it
-  const pass = new PassThrough();
-  pipeline(webStream as unknown as NodeJS.ReadableStream, pass).catch(() => {
-    pass.destroy();
-  });
-
-  return pass;
+  return response.data as NodeJS.ReadableStream;
 }

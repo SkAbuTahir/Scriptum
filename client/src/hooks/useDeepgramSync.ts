@@ -89,7 +89,7 @@ export function useDeepgramSync(options: UseDeepgramSyncOptions): UseDeepgramSyn
 
   const fetchTempKey = useCallback(async (): Promise<string> => {
     const token = typeof window !== 'undefined'
-      ? localStorage.getItem('scriptum_token')
+      ? localStorage.getItem('ultimoversio_token')
       : null;
 
     const res = await fetch(`${API_BASE}/api/deepgram/token`, {

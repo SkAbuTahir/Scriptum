@@ -7,7 +7,8 @@ import { motion } from 'framer-motion';
 import { AceFileUpload } from '@/components/ui/ace-file-upload';
 import { ShimmerButton } from '@/components/ui/ace-input';
 import { MeteorCard } from '@/components/ui/meteor-card';
-import {
+import { BackgroundDots } from '@/components/ui/background-dots';
+import { ArrowLeft,
   Youtube, ArrowRight, Loader2, AlertCircle, FileType, File as FileIcon, FileText, Globe,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -87,13 +88,31 @@ export default function UploadPage() {
   ];
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-start px-4 pb-32 pt-16">
+    <div className="relative flex min-h-screen flex-col items-center justify-start overflow-hidden px-4 pb-32 pt-16">
+      {/* Ambient glow */}
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10"
+        style={{ background: 'radial-gradient(ellipse 70% 50% at 50% -10%, rgba(99,102,241,0.12) 0%, transparent 70%)' }}
+      />
+      <BackgroundDots gap={22} dotSize={1} className="fixed inset-0 -z-10 dark:opacity-100 opacity-50" />
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45 }}
         className="w-full max-w-xl"
       >
+        {/* Back link */}
+        <div className="mb-6">
+          <a
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-slate-500 transition-all hover:bg-slate-100/60 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-white/[0.05] dark:hover:text-slate-200"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Dashboard
+          </a>
+        </div>
         {/* Heading */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white">

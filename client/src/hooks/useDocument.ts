@@ -68,11 +68,10 @@ export function useDocument(documentId: string): UseDocumentReturn {
       setDocument(sanitizeDoc(doc));
 
       // If document was previously analyzed, reconstruct analysis state from it
-      if (doc.analysisRunAt) {
-        console.log('[useDocument] Loading cached analysis. aiScore from DB:', doc.aiScore);
+      if (doc.analysisRunAt && (doc.grammarScore !== null || doc.readabilityScore !== null)) {
         setAnalysis({
           documentId:       doc._id,
-          aiScore:          doc.aiScore ?? null,
+          aiScore:          doc.aiScore         ?? null,
           grammarScore:     doc.grammarScore     ?? 0,
           readabilityScore: doc.readabilityScore ?? 0,
           grammarIssues:    doc.grammarIssues    ?? [],
@@ -80,7 +79,7 @@ export function useDocument(documentId: string): UseDocumentReturn {
           longSentences:    doc.longSentences    ?? [],
           humanizationTips: doc.humanizationTips ?? [],
           aiReasoning:      doc.aiReasoning      ?? '',
-          tone:             doc.tone             ?? null,
+          tone:             doc.tone             ?? undefined,
           wordCount:        doc.wordCount,
           sentenceCount:    doc.sentenceCount    ?? 0,
           analyzedAt:       doc.analysisRunAt,

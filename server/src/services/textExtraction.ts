@@ -1,15 +1,7 @@
 import fs from 'fs';
 import mammoth from 'mammoth';
 import pdfParse from 'pdf-parse';
-import {
-  YoutubeTranscript,
-  TranscriptResponse,
-  YoutubeTranscriptDisabledError,
-  YoutubeTranscriptNotAvailableError,
-  YoutubeTranscriptNotAvailableLanguageError,
-  YoutubeTranscriptVideoUnavailableError,
-  YoutubeTranscriptTooManyRequestError,
-} from 'youtube-transcript';
+import axios from 'axios';
 import { ExtractedContent, DocumentSection } from '../types';
 
 // ─── Text Cleaning ─────────────────────────────────────────────────────────────
@@ -169,65 +161,113 @@ export async function extractFromYouTube(youtubeUrl: string): Promise<ExtractedC
 
   const videoId = videoIdMatch[1];
 
-  let segments: TranscriptResponse[];
+  // ── Step 1: Fetch the YouTube watch page ─────────────────────────────────
+  let pageHtml: string;
   try {
-    // fetchTranscript accepts the full URL or just the video ID
-    segments = await YoutubeTranscript.fetchTranscript(videoId, { lang: 'en' })
-      .catch(() => YoutubeTranscript.fetchTranscript(videoId));
+    const { data } = await axios.get(`https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+          '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+      timeout: 15_000,
+    });
+    pageHtml = data as string;
   } catch (err) {
-    console.error('[YouTube] Transcript fetch failed:', videoId, err);
-    
-    if (
-      err instanceof YoutubeTranscriptDisabledError ||
-      err instanceof YoutubeTranscriptNotAvailableError
-    ) {
-      throw new Error(
-        'This YouTube video has no transcript/captions available. ' +
-        'Please try a video that has auto-generated or manually added subtitles.'
-      );
-    }
-    if (err instanceof YoutubeTranscriptVideoUnavailableError) {
-      throw new Error(
-        'This YouTube video is unavailable or private. Please check the URL and try again.'
-      );
-    }
-    if (err instanceof YoutubeTranscriptTooManyRequestError) {
-      throw new Error(
-        'YouTube is rate-limiting transcript requests. Please try again in a few minutes.'
-      );
-    }
-    if (err instanceof YoutubeTranscriptNotAvailableLanguageError) {
-      // Should not reach here since we fallback, but guard anyway
-      throw new Error(
-        'No English transcript found. Please try a video with English captions.'
-      );
-    }
-    const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Could not fetch YouTube transcript: ${msg}`);
+    throw new Error('Could not reach YouTube. Check your internet connection.');
   }
 
-  if (!segments || segments.length === 0) {
+  // ── Step 2: Extract ytInitialPlayerResponse ───────────────────────────────
+  const playerMatch = pageHtml.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});(?:\s*(?:var\s+|window\[))/s)
+    ?? pageHtml.match(/ytInitialPlayerResponse\s*=\s*(\{.+?\});/s);
+
+  if (!playerMatch?.[1]) {
     throw new Error(
-      'The transcript was empty. The video may not have readable subtitles.'
+      'Could not parse YouTube player data. The video may be age-restricted or unavailable.'
     );
   }
 
-  // Join caption segments into continuous text
-  const rawText = segments
-    .map((s) =>
-      s.text
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;|&apos;/g, "'")
-        .replace(/<[^>]+>/g, '')
-        .trim()
-    )
-    .filter(Boolean)
-    .join(' ');
+  let playerResponse: Record<string, unknown>;
+  try {
+    playerResponse = JSON.parse(playerMatch[1]);
+  } catch {
+    throw new Error('Failed to parse YouTube player response.');
+  }
 
-  if (!rawText.trim()) {
+  // ── Step 3: Find a caption track ─────────────────────────────────────────
+  const captions =
+    (playerResponse as any)?.captions?.playerCaptionsTracklistRenderer?.captionTracks as
+    { baseUrl: string; languageCode: string; name: { simpleText: string } }[] | undefined;
+
+  if (!captions || captions.length === 0) {
+    throw new Error(
+      'This YouTube video has no transcript/captions available. ' +
+      'Please try a video that has auto-generated or manually added subtitles.'
+    );
+  }
+
+  // Prefer English; fall back to first available
+  const track =
+    captions.find((t) => t.languageCode.startsWith('en')) ?? captions[0];
+
+  // ── Step 4: Fetch the caption XML ─────────────────────────────────────────
+  let captionXml: string;
+  try {
+    const { data } = await axios.get(track.baseUrl + '&fmt=json3', {
+      headers: { 'User-Agent': 'Mozilla/5.0' },
+      timeout: 15_000,
+    });
+
+    // json3 format: { events: [{ segs: [{ utf8 }] }] }
+    if (typeof data === 'object' && (data as any).events) {
+      const events = (data as any).events as { segs?: { utf8: string }[]; aAppend?: number }[];
+      captionXml = events
+        .filter((e) => e.segs)
+        .flatMap((e) => e.segs!.map((s) => s.utf8 ?? ''))
+        .join(' ');
+    } else {
+      captionXml = data as string;
+    }
+  } catch {
+    // Fallback: fetch as plain XML
+    try {
+      const { data } = await axios.get(track.baseUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        timeout: 15_000,
+      });
+      captionXml = data as string;
+    } catch (err2) {
+      throw new Error('Could not fetch caption track from YouTube.');
+    }
+  }
+
+  // ── Step 5: Parse text from XML or plain string ───────────────────────────
+  let rawText: string;
+
+  if (typeof captionXml === 'string' && captionXml.trim().startsWith('<')) {
+    // XML format: <text start="..." dur="...">...</text>
+    rawText = captionXml
+      .replace(/<text[^>]*>/g, '')
+      .replace(/<\/text>/g, ' ')
+      .replace(/<[^>]+>/g, '');
+  } else {
+    rawText = captionXml;
+  }
+
+  // Decode HTML entities
+  rawText = rawText
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/&#\d+;/g, '')
+    .replace(/\n/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+
+  if (!rawText) {
     throw new Error('The transcript was empty after parsing. The video may not have readable subtitles.');
   }
 
